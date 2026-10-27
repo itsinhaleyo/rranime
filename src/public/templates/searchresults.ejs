@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results for "<%= searchKeyword %>" - RRAnime</title>
+    <link rel="stylesheet" href="/css/searchresults.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+    <div class="main-layout" style="grid-template-columns: minmax(0, 1fr);">
+        <main class="content-area">
+            <section class="latest-section">
+                <h2 class="section-title">
+                    <i class="fas fa-search text-primary"></i> 
+                    Search Results for: <span style="color: var(--accent);">"<%= searchKeyword %>"</span>
+                </h2>
+                <% if (animeResults && animeResults.length > 0) { %>
+                    <div class="anime-grid">
+                        <% animeResults.forEach(anime => { %>
+                            <div class="anime-card">
+                                <a href="/anime/<%= anime.mal_id %>" class="card-inner-link">
+                                    <div class="poster-wrapper">
+                                        <img src="<%= anime.image_url %>" alt="<%= anime.title %>" loading="lazy">
+                                        <div class="card-badges">
+                                            <span class="badge sub"><i class="fas fa-closed-captioning"></i> <%= anime.episodes || '?' %></span>
+                                            <span class="badge dub"><i class="fas fa-star text-primary"></i> <%= anime.score || '0.0' %></span>
+                                        </div>
+                                    </div>
+                                    <div class="card-details">
+                                        <h3 class="anime-grid-title"><%= anime.english_title || anime.title %></h3>
+                                    </div>
+                                </a>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="sidebar-block" style="text-align: center; padding: 4rem 2rem;">
+                        <i class="fas fa-folder-open" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+                        <p style="color: var(--text-muted);">No anime matches found for your search entry.</p>
+                        <a href="/home" class="btn-watch" style="display: inline-flex; margin-top: 1.5rem; text-decoration: none;">Return Home</a>
+                    </div>
+                <% } %>
+            </section>
+
+        </main>
+    </div>
+<%- include('footer') %>

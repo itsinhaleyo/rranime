@@ -1,0 +1,65 @@
+<header class="navbar">
+    <div class="nav-container">
+        <div class="nav-left">
+            <button class="sidebar-toggle" id="mobile-menu-toggle" aria-label="Toggle Sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="logo">
+                <a href="/home">RR<span>Anime</span></a>
+            </div>
+            <div class="drawer-search-wrapper2">
+                <form action="/search" method="GET" class="drawer-search-form">
+                    <input type="text" id="anime-search-input-pc" name="keyword" placeholder="Search anime title..." autocomplete="off" required>
+                    <button type="submit"><i class="fas fa-search"></i></button>
+                </form>
+                <div id="search-suggestions-pc" class="suggestions-dropdown" style="display: none;"></div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <a href="/watchlist" style="text-decoration: none;">
+                <button class="login-btn">Watch List</button>
+            </a>
+            <div class="notification-menu" id="notification-menu">
+                <button class="notification-bell" id="notification-bell" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notification-dropdown">
+                    <i class="fas fa-bell" aria-hidden="true"></i>
+                    <span class="notification-badge" id="notification-badge" hidden></span>
+                </button>
+                <div class="notification-dropdown" id="notification-dropdown" role="region" aria-label="Recent notifications" hidden>
+                    <div class="notification-dropdown-header">
+                        <h2>Notifications</h2>
+                        <span id="notification-dropdown-count"></span>
+                    </div>
+                    <div class="notification-dropdown-list" id="notification-dropdown-list">
+                        <p class="notification-dropdown-status">Loading notifications…</p>
+                    </div>
+                    <a class="notification-view-all" href="/notifications">View all notifications <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="drawer-search-wrapper1">
+            <form action="/search" method="GET" class="drawer-search-form">
+                <input type="text" id="anime-search-input-mobile" name="keyword" placeholder="Search anime title..." autocomplete="off" required>
+                <button type="submit"><i class="fas fa-search"></i></button>
+            </form>
+            <div id="search-suggestions-mobile" class="suggestions-dropdown" style="display: none;"></div>
+        </div>
+    </div>
+</header>
+<div class="mobile-drawer" id="mobile-sidebar-drawer">
+    <div class="drawer-overlay" id="mobile-drawer-close-mask"></div>
+    <div class="drawer-content">
+        <div class="drawer-header">
+            <div class="drawer-logo">RR<span>Anime</span></div>
+            <button class="close-drawer-btn" id="mobile-drawer-close-btn"><i class="fas fa-xmark"></i></button>
+        </div>
+        <nav class="drawer-nav-links">
+            <a href="/home"><i class="fas fa-house"></i> Home</a>
+            <a href="/airingschedule/sub"><i class="fas fa-tv"></i> Airing Calendar</a>
+            <a href="/trending"><i class="fas fa-fire"></i> Trending Titles</a>
+            <a href="/genres"><i class="fas fa-fire"></i> Genres</a>
+            <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+            <a href="/logout"><i class="fas fa-arrow-right-from-bracket"></i> Logout</a>
+        </nav>
+    </div>
+</div>
+<script src="/script/header.js" defer></script>

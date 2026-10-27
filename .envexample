@@ -1,0 +1,12 @@
+DB_HOST = 
+DB_USER = 
+DB_PASS = 
+DB_NAME = 
+MAL_ID = 
+MAL_SECRET = 
+PORT = 
+SESSION_SECRET = 
+DOMAIN = 
+USER_1 = 
+USER_2 = 
+USER_3 = 

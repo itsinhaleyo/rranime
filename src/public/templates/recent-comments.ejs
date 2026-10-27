@@ -1,0 +1,46 @@
+<section class="recent-comments" aria-labelledby="recent-comments-heading">
+    <div class="recent-comments-heading">
+        <div>
+            <span class="recent-comments-eyebrow">COMMUNITY</span>
+            <h2 id="recent-comments-heading">Newest Comments</h2>
+        </div>
+        <span class="recent-comments-caption">Join the conversation</span>
+    </div>
+    <% if (recentComments && recentComments.length > 0) { %>
+        <div class="recent-comments-track">
+            <% recentComments.forEach(comment => { %>
+                <% const commentAccent = /^#[0-9a-fA-F]{6}$/.test(comment.accent_color || '') ? comment.accent_color : '#ff3c20'; %>
+                <% const commentAgeMs = Math.max(0, Date.now() - new Date(comment.created_at).getTime()); %>
+                <a class="recent-comment-card" href="/anime/<%= comment.anime_id %>/<%= comment.episode_number %>#comment-<%= comment.comment_id %>" style="--comment-accent: <%= commentAccent %>">
+                    <div class="recent-comment-author-row">
+                        <div class="recent-comment-avatar">
+                            <% if (comment.avatar_url) { %>
+                                <img src="<%= comment.avatar_url %>" alt="">
+                            <% } else { %>
+                                <span><%= (comment.display_name || 'A').charAt(0).toUpperCase() %></span>
+                            <% } %>
+                        </div>
+                        <div class="recent-comment-copy">
+                            <div class="recent-comment-byline">
+                                <% if (String(comment.user_id) === '1') { %><span class="comment-admin-badge">ADMIN</span><% } %>
+                                <strong class="recent-comment-author-name"><%= comment.display_name || `Anime fan #${comment.user_id}` %></strong>
+                                <time datetime="<%= new Date(comment.created_at).toISOString() %>"><%= commentAgeMs < 60000 ? 'just now' : commentAgeMs < 3600000 ? `${Math.floor(commentAgeMs / 60000)}m ago` : commentAgeMs < 86400000 ? `${Math.floor(commentAgeMs / 3600000)}h ago` : `${Math.floor(commentAgeMs / 86400000)}d ago` %></time>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="recent-comment-message"><%= comment.body %></p>
+                    <span class="recent-comment-context">
+                        <i class="fas <%= comment.parent_comment_id ? 'fa-reply' : 'fa-comment' %>" aria-hidden="true"></i>
+                        <%= comment.english_title || comment.anime_title %>
+                        <span>· Ep <%= comment.episode_number %></span>
+                    </span>
+                </a>
+            <% }); %>
+        </div>
+    <% } else { %>
+        <div class="recent-comments-empty">
+            <i class="far fa-comments" aria-hidden="true"></i>
+            <p>No comments yet. Be the first to start an episode discussion.</p>
+        </div>
+    <% } %>
+</section>

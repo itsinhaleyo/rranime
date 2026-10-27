@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rranime - Watch Anime Online Free</title>
+    <link rel="stylesheet" href="/css/landing.css">
+    <link rel="stylesheet" href="/css/recent-comments.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/script/landing.js" defer></script>
+</head>
+<body>
+<%- include('header') %>
+    <main class="landing-main">
+        <div class="hero-section">
+            <div class="announcement-badge">
+                <span class="badge-pulse-dot"></span>
+                Find a series to watch
+            </div>
+            <h1>Find Your Next <span class="highlight-text">Anime</span></h1>
+            <p class="hero-description">Search the catalog, explore currently airing shows, and jump straight to an episode.</p>
+        </div>
+        <div class="search-container">
+            <form action="/search" method="GET" class="search-bar-wrapper" role="search">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="search" id="landing-search-input" name="keyword" autocomplete="off" placeholder="Search anime by title..." class="search-input" aria-label="Search anime" aria-autocomplete="list" aria-controls="landing-search-suggestions" aria-expanded="false">
+                <button type="submit" class="search-submit-btn" aria-label="Submit anime search">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+            <div class="landing-suggestions" id="landing-search-suggestions" role="listbox" hidden></div>
+        </div>
+        <div class="trending-tags-container">
+            <span class="trending-title">Popular airing:</span>
+            <% if (trending && trending.length > 0) { %>
+            <% trending.forEach(anime => { %>
+                <a href="/anime/<%= anime.mal_id %>" class="tag-link">
+                    <%= anime.title %>
+                </a>
+            <% }); %>
+            <% } else { %>
+                <span class="trending-empty">No airing titles found yet.</span>
+            <% } %>
+        </div>
+
+        <nav class="landing-shortcuts" aria-label="Browse anime">
+            <a href="/home"><i class="fas fa-compass" aria-hidden="true"></i> Browse all anime</a>
+            <a href="/airingschedule/sub"><i class="fas fa-calendar-days" aria-hidden="true"></i> Airing schedule</a>
+            <a href="/genres"><i class="fas fa-layer-group" aria-hidden="true"></i> Browse genres</a>
+        </nav>
+
+        <section class="landing-airing-section" aria-labelledby="landing-airing-heading">
+            <div class="landing-section-heading">
+                <div>
+                    <span class="landing-eyebrow">WATCH SOMETHING NEW</span>
+                    <h2 id="landing-airing-heading">Popular airing anime</h2>
+                </div>
+                <a href="/airing" class="landing-view-all">View all <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <% if (airingAnime && airingAnime.length > 0) { %>
+                <div class="landing-airing-grid">
+                    <% airingAnime.forEach(anime => { %>
+                        <a href="/anime/<%= anime.mal_id %>" class="landing-airing-card">
+                            <div class="landing-airing-poster">
+                                <% if (anime.image_url) { %>
+                                    <img src="<%= anime.image_url %>" alt="" loading="lazy">
+                                <% } else { %>
+                                    <span class="poster-fallback"><i class="fas fa-film" aria-hidden="true"></i></span>
+                                <% } %>
+                                <span class="airing-label"><i class="fas fa-circle" aria-hidden="true"></i> Airing</span>
+                            </div>
+                            <div class="landing-airing-meta">
+                                <h3><%= anime.english_title || anime.title %></h3>
+                                <span><%= anime.type || 'TV' %> · <i class="fas fa-star" aria-hidden="true"></i> <%= anime.score || 'N/A' %></span>
+                            </div>
+                        </a>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <p class="landing-empty">Airing titles will appear here when available.</p>
+            <% } %>
+        </section>
+
+        <%- include('recent-comments', { recentComments }) %>
+    </main>
+<%- include('footer') %>

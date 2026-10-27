@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Watchlist - RRAnime</title>
+    <link rel="stylesheet" href="/css/home.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="/css/watchlist.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+    <div class="main-layout">
+        <main class="content-area">
+            <div class="section-header-watchlist">
+                <h2 class="section-title"><i class="fas fa-heart text-primary"></i> My Watchlist</h2>
+                <div class="mal-import-wrapper">
+                    <form action="/watchlist/import-mal" method="POST" class="mal-import-form">
+                        <div class="mal-input-group">
+                            <span class="mal-input-icon"><i class="fab fa-apple"></i></span>
+                            <input type="text" name="malUsername" placeholder="MAL Username..." required>
+                            <button type="submit" class="btn-import-mal" title="Import from MyAnimeList">
+                                <i class="fas fa-arrow-down-to-bracket"></i> Import
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="watchlist-count">
+                    <%= watchlistAnime ? watchlistAnime.length : 0 %> Titles Saved
+                </div>
+            </div>
+            <div class="anime-grid">
+                <% if (watchlistAnime && watchlistAnime.length > 0) { %>
+                    <% watchlistAnime.forEach(anime => { %>
+                        <div class="anime-card watchlist-card">
+                            <a href="/anime/<%= anime.mal_id %>" class="card-inner-link">
+                                <div class="poster-wrapper">
+                                    <img src="<%= anime.image_url %>" alt="<%= anime.title %>" loading="lazy">
+                                    <div class="card-badges">
+                                        <span class="badge sub"><i class="fas fa-closed-captioning"></i> <%= anime.episodes || '?' %></span>
+                                        <span class="badge dub"><i class="fas fa-microphone"></i> <%= anime.episodes || '?' %></span>
+                                    </div>
+                                    <form action="/watchlist/remove/<%= anime.mal_id %>" method="POST" class="remove-watchlist-form" onclick="event.stopPropagation();">
+                                        <button type="submit" class="btn-remove-item" title="Remove from Watchlist">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                    <div class="episode-badge"><%= anime.type || 'TV' %></div>
+                                </div>
+                                <div class="card-details">
+                                    <h3 class="anime-grid-title title-truncate"><%= anime.english_title || anime.title %></h3>
+                                    <div class="watchlist-card-meta">
+                                        <span><i class="fas fa-star text-primary"></i> <%= anime.score || '0.0' %></span>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="watchlist-empty-state">
+                        <div class="empty-icon-wrapper">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <h3>Your Watchlist is empty</h3>
+                        <p>Explore titles on the home screen to add items here!</p>
+                        <a href="/home" class="btn-back-home"><i class="fas fa-home"></i> Back to Homepage</a>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+<%- include('footer') %>
+</body>
+</html>

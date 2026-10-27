@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Currently Airing Anime - RRAnime</title>
+    <link rel="stylesheet" href="/css/airing.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+    <main class="airing-container">
+            <h1><i class="fas <%- Data.icon %> pulse-icon"></i><%= Data.title %></h1>
+            <%- Data.title2 %>
+        <% if (animeList.length === 0) { %>
+            <div class="empty-state">
+                <i class="fas fa-tv-slash"></i>
+                <p>No currently airing anime records were found in the database layer.</p>
+            </div>
+        <% } else { %>
+            <div class="anime-grid">
+                <% animeList.forEach(anime => { %>
+                    <a href="/anime/<%= anime.mal_id %>" class="anime-card">
+                        <div class="card-image-wrapper">
+                            <img src="<%= anime.image_url || 'https://placeholder.com' %>" alt="<%= anime.title %>" loading="lazy">
+                            <% if (anime.score && anime.score > 0) { %>
+                                <div class="card-badge">⭐ <%= anime.score %></div>
+                            <% } %>
+                        </div>
+                        <div class="card-details">
+                            <h2 class="anime-title" title="<%= anime.title %>">
+                                <%= anime.english_title || anime.title %>
+                            </h2>
+                            <div class="anime-meta">
+                                <span class="meta-type"><%= anime.type || 'TV' %></span>
+                                <span class="meta-divider">•</span>
+                                <span class="meta-episodes">
+                                    <%= anime.episodes && anime.episodes > 0 ? anime.episodes + ' Ep' : 'Airing' %>
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        <% } %>
+    </main>
+<%- include('footer') %>

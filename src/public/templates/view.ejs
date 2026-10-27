@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= anime.english_title || anime.title %> - RRAnime</title>
+    <link rel="stylesheet" href="/css/view.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+    <div class="main-layout">
+        <main class="content-area">
+            <section class="anime-detail-wrapper" style="background-image: linear-gradient(0deg, #0f1115 10%, rgba(15, 17, 21, 0.9) 100%);">
+                <div class="detail-container">
+                    <div class="detail-poster">
+                        <img src="<%= anime.image_url %>" alt="<%= anime.title %>">
+                    </div>
+                    <div class="detail-info-block">
+                        <div class="breadcrumbs-trail">
+                            <a href="/home">Home</a> <i class="fas fa-chevron-right"></i> <span><%= anime.type %></span>
+                        </div>
+                        <h1 class="view-anime-title"><%= anime.english_title || anime.title %></h1>
+                        <p class="view-native-title"><%= anime.title %></p>
+                        <div class="anime-meta" style="margin-top: 1rem;">
+                            <span class="quality-tag">HD</span>
+                            <span class="sub-dub-tag"><i class="fas fa-closed-captioning"></i> <%= anime.episodes || '?' %></span>
+                            <span class="sub-dub-tag dub"><i class="fas fa-microphone"></i> <%= anime.episodes || '?' %></span>
+                            <span class="meta-item"><i class="fas fa-circle-play text-primary"></i> <%= anime.type %></span>
+                        </div>
+                        <div class="action-buttons-row">
+                            <a href="/anime/<%= anime.mal_id %>/1" class="btn-watch-now">
+                                <i class="fas fa-play"></i> Watch Now
+                            </a>
+                            <% if (inWatchlist) { %>
+                                <form action="/watchlist/remove/<%= anime.mal_id %>" method="POST" style="display: inline-block;">
+                                    <button type="submit" class="btn-add-watchlist btn-is-tracked" style="cursor: pointer;">
+                                        <i class="fas fa-check"></i> Remove from List
+                                    </button>
+                                </form>
+                            <% } else { %>
+                                <form action="/watchlist/add" method="POST" style="display: inline-block;">
+                                    <input type="hidden" name="animeId" value="<%= anime.mal_id %>">
+                                    <button type="submit" class="btn-add-watchlist" style="cursor: pointer;">
+                                        <i class="fas fa-plus"></i> Add to List
+                                    </button>
+                                </form>
+                            <% } %>
+                        </div>
+                        <div class="synopsis-box">
+                            <p class="synopsis-text">
+                                <%= anime.synopsis || 'No synopsis log entries are registered for this series profile.' %>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="episodes-block-wrapper">
+                <div class="sidebar-header" style="border: none;">
+                    <h3><i class="fas fa-list text-primary"></i> Episode Selector Track</h3>
+                    <span class="stab">Total Available: <%= anime.episodes || '??' %></span>
+                </div>
+                <div class="episode-selection-grid">
+                    <% if (anime.episodes && anime.episodes > 0) { %>
+                        <% for (let i = 1; i <= anime.episodes; i++) { %>
+                            <a href="/anime/<%= anime.mal_id %>/<%= i %>" class="episode-bubble <%= watchedEpisodes.includes(i) ? 'watched' : '' %>">
+                                <%= i %>
+                            </a>
+                        <% } %>
+                    <% } else { %>
+                        <% for (let i = 1; i <= 12; i++) { %>
+                            <a href="/anime/<%= anime.mal_id %>/<%= i %>" class="episode-bubble <%= watchedEpisodes.includes(i) ? 'watched' : '' %>">
+                                <%= i %>
+                            </a>
+                        <% } %>
+                    <% } %>
+                </div>
+            </section>
+        </main>
+        <aside class="sidebar-area">
+            <div class="sidebar-block profile-meta-specs">
+                <div class="sidebar-header">
+                    <h3>Metadata Statistics</h3>
+                </div>
+                <div class="spec-list-group">
+                    <div class="spec-item">
+                        <span class="spec-label">Database ID:</span>
+                        <span class="spec-val">#<%= anime.mal_id %></span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Score Value:</span>
+                        <span class="spec-val"><i class="fas fa-star text-primary"></i> <%= anime.score || '0.00' %></span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Air Status:</span>
+                        <span class="spec-val current-status"><%= anime.status || 'Unknown' %></span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Episodes:</span>
+                        <span class="spec-val"><%= anime.episodes || 'TBD' %></span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Rating:</span>
+                        <span class="spec-val"><i class="fas text-primary"></i> <%= anime.rating || 'N/A' %></span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">Genres:</span>
+                        <span class="spec-val" style="text-align: right;"><i class="fas text-primary"></i> <%= anime.genres || 'N/A' %></span>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-block top-anime-block">
+                <div class="sidebar-header">
+                    <h3>Related Content</h3>
+                </div>
+                <ul class="top-list">
+                    <% recommendations.forEach((rec, index) => { %>
+                        <li class="top-item">
+                            <span class="rank-num"><%= index + 1 %></span>
+                            <div class="top-poster">
+                                <img src="<%= rec.image_url %>" alt="<%= rec.title %>">
+                            </div>
+                            <div class="top-meta">
+                                <a href="/anime/<%= rec.mal_id %>">
+                                    <h4 class="title-truncate"><%= rec.title %></h4>
+                                </a>
+                                <div class="top-counts">
+                                    <span><i class="fas fa-star text-primary"></i> <%= rec.score || '0.0' %></span>
+                                    <span class="dot">•</span>
+                                    <span class="type-mini"><%= rec.type %></span>
+                                </div>
+                            </div>
+                        </li>
+                    <% }); %>
+                </ul>
+            </div>
+        </aside>
+    </div>
+<%- include('footer') %>
+</body>
+</html>

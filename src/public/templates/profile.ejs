@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - RRAnime</title>
+    <link rel="stylesheet" href="/css/home.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="/css/profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+<div class="main-layout profile-layout">
+    <main class="content-area">
+        <section class="profile-heading">
+            <div>
+                <p class="profile-eyebrow">YOUR SPACE</p>
+                <h1>Customize your profile</h1>
+                <p>Give your RRAnime profile a look and a voice of its own.</p>
+            </div>
+            <% if (saved) { %>
+                <div class="profile-saved" role="status"><i class="fas fa-circle-check"></i> Changes saved</div>
+            <% } %>
+        </section>
+
+        <div class="profile-editor-grid">
+            <form class="profile-form" action="/profile" method="POST">
+                <div class="profile-form-heading">
+                    <h2>Profile details</h2>
+                    <span>Visible on your profile</span>
+                </div>
+
+                <label for="display-name">Display name</label>
+                <input id="display-name" name="display_name" type="text" maxlength="40"
+                       value="<%= profile.display_name %>" placeholder="How should we call you?">
+
+                <label for="bio">About you</label>
+                <textarea id="bio" name="bio" maxlength="280" rows="4"
+                          placeholder="Tell other fans a little about yourself…"><%= profile.bio %></textarea>
+                <div class="profile-field-hint"><span>Up to 280 characters</span><span id="bio-count"><%= (profile.bio || '').length %>/280</span></div>
+
+                <label for="avatar-url">Avatar image URL</label>
+                <input id="avatar-url" name="avatar_url" type="url" maxlength="500"
+                       value="<%= profile.avatar_url %>" placeholder="https://example.com/avatar.jpg">
+                <span class="profile-field-hint">Use a direct link to an image.</span>
+
+                <label for="accent-color">Accent color</label>
+                <div class="color-picker-row">
+                    <input id="accent-color" name="accent_color" type="color" value="<%= /^#[0-9a-fA-F]{6}$/.test(profile.accent_color || '') ? profile.accent_color : '#ff3c20' %>">
+                    <span>Choose the color used on your profile card.</span>
+                </div>
+
+                <div class="profile-form-actions">
+                    <button type="submit" class="profile-save-button"><i class="fas fa-floppy-disk"></i> Save profile</button>
+                </div>
+            </form>
+
+            <aside class="profile-preview-panel" aria-live="polite">
+                <div class="profile-preview-label"><i class="far fa-eye"></i> LIVE PREVIEW</div>
+                <article class="profile-card" id="profile-preview" style="--profile-accent: <%= /^#[0-9a-fA-F]{6}$/.test(profile.accent_color || '') ? profile.accent_color : '#ff3c20' %>">
+                    <div class="profile-card-cover"></div>
+                    <div class="profile-card-content">
+                        <div class="profile-avatar" id="preview-avatar-wrap">
+                            <% if (profile.avatar_url) { %>
+                                <img id="preview-avatar" src="<%= profile.avatar_url %>" alt="Profile avatar">
+                            <% } else { %>
+                                <span id="preview-avatar-fallback"><%= (profile.display_name || 'A').charAt(0).toUpperCase() %></span>
+                                <img id="preview-avatar" alt="Profile avatar" hidden>
+                            <% } %>
+                        </div>
+                        <span class="profile-card-tag"><i class="fas fa-circle"></i> ANIME FAN</span>
+                        <h2 id="preview-name"><%= profile.display_name || 'Your display name' %></h2>
+                        <p id="preview-bio"><%= profile.bio || 'Your bio will show up here. Share what you love watching.' %></p>
+                        <div class="profile-card-footer"><i class="fas fa-play"></i> RRAnime member</div>
+                    </div>
+                </article>
+                <p class="preview-note">This is a preview of your personalized profile card.</p>
+            </aside>
+        </div>
+    </main>
+</div>
+<%- include('footer') %>
+<script>
+(() => {
+    const name = document.getElementById('display-name');
+    const bio = document.getElementById('bio');
+    const avatarUrl = document.getElementById('avatar-url');
+    const accent = document.getElementById('accent-color');
+    const previewName = document.getElementById('preview-name');
+    const previewBio = document.getElementById('preview-bio');
+    const preview = document.getElementById('profile-preview');
+    const avatar = document.getElementById('preview-avatar');
+    const fallback = document.getElementById('preview-avatar-fallback');
+    const bioCount = document.getElementById('bio-count');
+
+    name.addEventListener('input', () => {
+        previewName.textContent = name.value.trim() || 'Your display name';
+        if (fallback) fallback.textContent = (name.value.trim() || 'A').charAt(0).toUpperCase();
+    });
+    bio.addEventListener('input', () => {
+        previewBio.textContent = bio.value.trim() || 'Your bio will show up here. Share what you love watching.';
+        bioCount.textContent = `${bio.value.length}/280`;
+    });
+    avatarUrl.addEventListener('input', () => {
+        const value = avatarUrl.value.trim();
+        const valid = /^https?:\/\//i.test(value);
+        avatar.hidden = !valid;
+        if (fallback) fallback.hidden = valid;
+        if (valid) avatar.src = value;
+    });
+    accent.addEventListener('input', () => preview.style.setProperty('--profile-accent', accent.value));
+    avatar.addEventListener('error', () => {
+        avatar.hidden = true;
+        if (fallback) fallback.hidden = false;
+    });
+})();
+</script>
+</body>
+</html>

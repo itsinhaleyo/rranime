@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watching <%= anime.english_title || anime.title %> Episode <%= currentEpisode %> - RRAnime</title>
+    <link rel="stylesheet" href="/css/watch.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/script/watch.js" defer></script>
+</head>
+<body>
+<%- include('header') %>
+    <div class="main-layout watch-theater-layout">
+        <main class="content-area">
+            <section class="video-theater-wrapper" data-mal-id="<%= anime.mal_id %>" data-anilist-id="<%= anilistId || '' %>" data-current-episode="<%= currentEpisode %>">
+                <div class="player-canvas">
+                    <iframe 
+                        id="rranime-embed-player"
+                        src="https://zokoanime.video/stream/mal/<%= anime.mal_id %>/<%= currentEpisode %>/sub?color=ff3c20" 
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" 
+                        allowfullscreen 
+                        scrolling="no" 
+                        allow="autoplay; encrypted-media; picture-in-picture">
+                    </iframe>
+                </div>
+                <div class="player-controls-bar">
+                    <div class="controls-left">
+                        <span class="viewing-indicator">You are watching <strong>Episode <%= currentEpisode %></strong></span>
+                    </div>
+                    <div class="controls-right">
+                        <% if (currentEpisode > 1) { %>
+                            <a href="/anime/<%= anime.mal_id %>/<%= currentEpisode - 1 %>" class="btn-nav-ep"><i class="fas fa-step-backward"></i> Prev</a>
+                        <% } %>
+                        <% if (currentEpisode < totalEpisodes) { %>
+                            <a href="/anime/<%= anime.mal_id %>/<%= currentEpisode + 1 %>" class="btn-nav-ep">Next <i class="fas fa-step-forward"></i></a>
+                        <% } %>
+                        <button class="btn-theater-toggle" title="Light Switch"><i class="fas fa-lightbulb"></i></button>
+                    </div>
+                </div>
+            </section>
+            <section class="server-switching-block">
+                <div class="server-rail-heading">
+                    <div class="rail-title"><i class="fas fa-server text-primary"></i> Streaming Server Node:</div>
+                    <p class="rail-hint">If current node buffering loops fail, please swap mirror tracks below.</p>
+                </div>
+                <div class="server-group-row">
+                    <div class="server-type-badge">SUB</div>
+                    <div class="server-buttons-rack">
+                        <button type="button" class="server-bubble audio-toggle active" data-provider="zoko" data-audio="sub" aria-pressed="true">
+                            <i class="fas fa-closed-captioning"></i> Server 1 (SUB)
+                        </button>
+                        <% if (anilistId) { %>
+                            <button type="button" class="server-bubble audio-toggle" data-provider="anixo" data-audio="sub" aria-pressed="false">
+                                <i class="fas fa-closed-captioning"></i> Server 2 (SUB)
+                            </button>
+                        <% } %>
+                        <button type="button" class="server-bubble audio-toggle" data-provider="megavid" data-audio="sub" aria-pressed="false">
+                            <i class="fas fa-closed-captioning"></i> Server 3 (SUB)
+                        </button>
+                    </div>
+                </div>
+                <div class="server-group-row" style="margin-top: 1rem;">
+                    <div class="server-type-badge dub-badge">DUB</div>
+                    <div class="server-buttons-rack">
+                        <button type="button" class="server-bubble audio-toggle" data-provider="zoko" data-audio="dub" aria-pressed="false">
+                            <i class="fas fa-microphone"></i> Server 1 (DUB)
+                        </button>
+                        <% if (anilistId) { %>
+                            <button type="button" class="server-bubble audio-toggle" data-provider="anixo" data-audio="dub" aria-pressed="false">
+                                <i class="fas fa-microphone"></i> Server 2 (DUB)
+                            </button>
+                        <% } %>
+                        <button type="button" class="server-bubble audio-toggle" data-provider="megavid" data-audio="dub" aria-pressed="false">
+                            <i class="fas fa-microphone"></i> Server 3 (DUB)
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <section class="comments-block-wrapper" id="comments">
+                <div class="comments-heading">
+                    <div>
+                        <h2><i class="fas fa-comments text-primary"></i> Episode discussion</h2>
+                        <p>Share your thoughts on episode <%= currentEpisode %>.</p>
+                    </div>
+                    <span class="comments-count"><%= commentCount %> <%= commentCount === 1 ? 'comment' : 'comments' %></span>
+                </div>
+                <form class="comment-compose" action="/anime/<%= anime.mal_id %>/<%= currentEpisode %>/comments" method="POST">
+                    <div class="comment-avatar compose-avatar">
+                        <% if (currentProfile.avatar_url) { %>
+                            <img src="<%= currentProfile.avatar_url %>" alt="">
+                        <% } else { %>
+                            <span><%= (currentProfile.display_name || 'A').charAt(0).toUpperCase() %></span>
+                        <% } %>
+                    </div>
+                    <div class="comment-compose-fields">
+                        <label for="episode-comment">Commenting as <strong><%= currentProfile.display_name || `Anime fan #${currentUserId}` %></strong></label>
+                        <textarea id="episode-comment" name="body" maxlength="1000" rows="3" placeholder="Add to the discussion…" required></textarea>
+                        <div class="comment-compose-footer">
+                            <span>Up to 1000 characters</span>
+                            <button type="submit" class="btn-post-comment"><i class="fas fa-paper-plane"></i> Post comment</button>
+                        </div>
+                    </div>
+                </form>
+                <div class="comments-thread-feed">
+                    <% if (comments.length) { %>
+                        <% comments.forEach(comment => { %>
+                            <% const commentAccent = /^#[0-9a-fA-F]{6}$/.test(comment.accent_color || '') ? comment.accent_color : '#ff3c20'; %>
+                            <article class="episode-comment" id="comment-<%= comment.comment_id %>" style="--comment-accent: <%= commentAccent %>">
+                                <div class="comment-avatar">
+                                    <% if (comment.avatar_url) { %>
+                                        <img src="<%= comment.avatar_url %>" alt="">
+                                    <% } else { %>
+                                        <span><%= (comment.display_name || 'A').charAt(0).toUpperCase() %></span>
+                                    <% } %>
+                                </div>
+                                <div class="comment-content">
+                                    <div class="comment-byline">
+                                        <div>
+                                            <% if (String(comment.user_id) === '1') { %><span class="comment-admin-badge">ADMIN</span><% } %>
+                                            <span class="comment-author" style="--comment-accent: <%= commentAccent %>"><%= comment.display_name || `Anime fan #${comment.user_id}` %></span>
+                                            <time class="comment-time" datetime="<%= new Date(comment.created_at).toISOString() %>"><%= new Date(comment.created_at).toLocaleString() %></time>
+                                        </div>
+                                        <% if (String(comment.user_id) === currentUserId) { %>
+                                            <form action="/anime/<%= anime.mal_id %>/<%= currentEpisode %>/comments/<%= comment.comment_id %>/delete" method="POST">
+                                                <button type="submit" class="comment-delete" aria-label="Delete your comment" title="Delete comment"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        <% } %>
+                                    </div>
+                                    <p class="comment-message"><%= comment.body %></p>
+                                </div>
+                            </article>
+                            <% if (comment.replies.length) { %>
+                                <div class="comment-replies" aria-label="Replies to <%= comment.display_name || 'this comment' %>">
+                                    <% comment.replies.forEach(reply => { %>
+                                        <% const replyAccent = /^#[0-9a-fA-F]{6}$/.test(reply.accent_color || '') ? reply.accent_color : '#ff3c20'; %>
+                                        <article class="episode-comment episode-reply" id="comment-<%= reply.comment_id %>" style="--comment-accent: <%= replyAccent %>">
+                                            <div class="comment-avatar">
+                                                <% if (reply.avatar_url) { %><img src="<%= reply.avatar_url %>" alt=""><% } else { %><span><%= (reply.display_name || 'A').charAt(0).toUpperCase() %></span><% } %>
+                                            </div>
+                                            <div class="comment-content">
+                                                <div class="comment-byline">
+                                                    <div>
+                                                        <% if (String(reply.user_id) === '1') { %><span class="comment-admin-badge">ADMIN</span><% } %>
+                                                        <span class="comment-author" style="--comment-accent: <%= replyAccent %>"><%= reply.display_name || `Anime fan #${reply.user_id}` %></span>
+                                                        <time class="comment-time" datetime="<%= new Date(reply.created_at).toISOString() %>"><%= new Date(reply.created_at).toLocaleString() %></time>
+                                                    </div>
+                                                    <% if (String(reply.user_id) === currentUserId) { %>
+                                                        <form action="/anime/<%= anime.mal_id %>/<%= currentEpisode %>/comments/<%= reply.comment_id %>/delete" method="POST">
+                                                            <button type="submit" class="comment-delete" aria-label="Delete your reply" title="Delete reply"><i class="fas fa-trash"></i></button>
+                                                        </form>
+                                                    <% } %>
+                                                </div>
+                                                <p class="comment-message"><%= reply.body %></p>
+                                            </div>
+                                        </article>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+                            <form class="comment-reply-form" action="/anime/<%= anime.mal_id %>/<%= currentEpisode %>/comments/<%= comment.comment_id %>/reply" method="POST">
+                                <label class="sr-only" for="reply-<%= comment.comment_id %>">Reply to <%= comment.display_name || 'comment' %></label>
+                                <textarea id="reply-<%= comment.comment_id %>" name="body" maxlength="1000" rows="2" placeholder="Reply to this comment…" required></textarea>
+                                <button type="submit" class="btn-reply-comment"><i class="fas fa-reply"></i> Reply</button>
+                            </form>
+                        <% }); %>
+                    <% } else { %>
+                        <div class="comments-empty"><i class="far fa-comment-dots"></i><span>No comments yet. Start the discussion.</span></div>
+                    <% } %>
+                </div>
+            </section>
+        </main>
+        <aside class="sidebar-area">
+            <div class="sidebar-block episode-directory-card">
+                <div class="sidebar-header" style="margin-bottom: 1rem;">
+                    <h3><i class="fas fa-folder-open text-primary"></i> Episode Directory</h3>
+                </div>
+                <div class="directory-scroller-track">
+                    <% for (let i = 1; i <= totalEpisodes; i++) { %>
+                        <a href="/anime/<%= anime.mal_id %>/<%= i %>" class="directory-strip-row <%= i === currentEpisode ? 'active-track' : '' %> <%= watchedEpisodes.includes(i) ? 'watched' : '' %>">
+                            <span class="strip-num"><%= i %></span>
+                            <span class="strip-label">Episode <%= i %></span>
+                            <% if (i === currentEpisode) { %>
+                                <span class="playing-now-tag"><i class="fas fa-volume-high fa-beat"></i></span>
+                            <% } %>
+                        </a>
+                    <% } %>
+                </div>
+            </div>
+                <div class="context-split">
+                    <img src="<%= anime.image_url %>" alt="<%= anime.title %>" class="context-poster">
+                    <div class="context-meta-text">
+                        <h4 class="title-truncate"><%= anime.english_title || anime.title %></h4>
+                        <p class="type-mini" style="display:inline-block; margin-top: 0.5rem;"><%= anime.type %></p>
+                        <a href="/anime/<%= anime.mal_id %>" class="back-profile-link"><i class="fas fa-arrow-left"></i> View Profile</a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+<%- include('footer') %>

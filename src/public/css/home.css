@@ -1,0 +1,857 @@
+/* ==========================================================================
+   rranime.online - Main Homepage Style Engine
+   Layout Framework Architecture based on hianime.dk/home
+   ========================================================================== */
+
+/* Global Configuration & Dark Theme Palette Setup */
+:root {
+    --bg-base: #0f1115;       /* Core dark canvas */
+    --bg-surface: #161920;    /* Sidebar cards and search track wrappers */
+    --bg-card: #1c2029;       /* Movie/Episode grid element backgrounds */
+    --accent: #ff3c20;         /* Classic rranime Red-Orange Accent */
+    --accent-glow: rgba(255, 60, 32, 0.25);
+    --accent-hover: #ff553b;   /* Hover focus states */
+    --text-main: #f3f4f6;     /* Primary crisp typography */
+    --text-muted: #9ca3af;    /* Secondary metadata tags */
+    --border-color: rgba(255, 255, 255, 0.07);
+    --nav-height: 70px;
+}
+
+/* Engine Base Reset Configuration */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Helper Utilities */
+.title-truncate {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.text-primary {
+    color: var(--accent) !important;
+}
+.navbar {
+    height: var(--nav-height);
+    background-color: rgba(15, 17, 21, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+.nav-container {
+    max-width: 1520px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-left, .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.logo {
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+.logo a {
+    color: #fff;
+}
+
+.logo span {
+    color: var(--accent);
+}
+
+/* Search Bar Component Wrapper */
+.search-bar {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 2rem;
+    padding: 0.25rem 0.25rem 0.25rem 1.2rem;
+    width: 320px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.search-bar:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(255, 60, 32, 0.15);
+}
+
+.search-bar input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 0.875rem;
+    width: 100%;
+}
+
+.search-bar input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-bar button {
+    background-color: var(--accent);
+    color: #fff;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-bar button:hover {
+    background-color: var(--accent-hover);
+}
+
+/* Socials & Auth Actions */
+.social-icons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.social-icons a {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    color: #fff;
+}
+
+.icon-tg { background-color: #0088cc; }
+.icon-tg:hover { background-color: #0077b3; }
+.icon-dc { background-color: #5865F2; }
+.icon-dc:hover { background-color: #4752C4; }
+
+.login-btn {
+    background-color: transparent;
+    color: #fff;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1.4rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.login-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ==========================================================================
+   Structural Two-Column Main Content & Sidebar Layout Grid
+   ========================================================================== */
+.main-layout {
+    max-width: 1520px;
+    width: 100%;
+    margin: var(--nav-height) auto 0 auto;
+    padding: 2rem 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2rem;
+    flex-grow: 1;
+}
+
+.content-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    min-width: 0; /* Prevents flex content clipping breaks */
+}
+
+/* Section Common Headers */
+.section-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+}
+
+/* ==========================================================================
+   Main Layout Elements: Hero Spotlight Slider Section
+   ========================================================================== */
+.hero-slider {
+    width: 100%;
+    border-radius: 1rem;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.spotlight-slides {
+    display: grid;
+    min-height: 420px;
+}
+
+.slide {
+    position: relative;
+    width: 100%;
+    height: 420px;
+    display: flex;
+    align-items: center;
+    grid-area: 1 / 1;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 450ms ease, visibility 450ms ease;
+}
+
+.slide.is-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.spotlight-controls {
+    position: absolute;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.spotlight-dots,
+.spotlight-arrows {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.spotlight-dot {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.spotlight-dot.is-active {
+    width: 22px;
+    border-radius: 1rem;
+    background: var(--accent);
+}
+
+.spotlight-arrow {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: rgba(15, 17, 21, 0.75);
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.spotlight-arrow:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.slide-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+
+.slide-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #0f1115 25%, rgba(15, 17, 21, 0.8) 50%, transparent 100%);
+    z-index: 2;
+}
+
+.slide-content {
+    position: relative;
+    z-index: 3;
+    max-width: 600px;
+    padding: 3rem;
+}
+
+.spotlight-tag {
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.anime-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #fff;
+    margin-bottom: 1rem;
+}
+
+.anime-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.85rem;
+}
+
+.meta-item {
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.quality-tag {
+    background-color: #fff;
+    color: #000;
+    font-weight: 700;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.25rem;
+}
+
+.sub-dub-tag {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    font-size: 0.75rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.sub-dub-tag.dub {
+    background-color: rgba(255, 60, 32, 0.15);
+    color: var(--accent);
+}
+
+.anime-description {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.75rem;
+}
+
+.slide-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-watch {
+    background-color: var(--accent);
+    color: #fff;
+    padding: 0.75rem 1.75rem;
+    border-radius: 0.5rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 15px var(--accent-glow);
+}
+
+.btn-watch:hover {
+    background-color: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.btn-detail {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-detail:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ==========================================================================
+   Main Layout Elements: Trending Horizontal Cards Module
+   ========================================================================== */
+.trending-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
+}
+
+.trending-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.trending-card:hover {
+    border-color: rgba(255, 60, 32, 0.3);
+    background-color: var(--bg-card);
+}
+
+.trending-number {
+    position: absolute;
+    right: -10px;
+    bottom: -15px;
+    font-size: 4rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.03);
+    line-height: 1;
+    z-index: 1;
+}
+
+.trending-poster {
+    width: 65px;
+    height: 90px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    flex-shrink: 0;
+    z-index: 2;
+}
+
+.trending-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.trending-info {
+    z-index: 2;
+    min-width: 0;
+}
+
+.trending-info h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.4;
+}
+
+.trending-info .title-link:hover h3 {
+    color: var(--accent);
+}
+
+/* ==========================================================================
+   Main Layout Elements: Latest Releases Grid Blocks Array
+   ========================================================================== */
+.latest-section .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.latest-section .section-title {
+    margin-bottom: 0;
+}
+
+.tab-filters {
+    display: flex;
+    background-color: var(--bg-surface);
+border-radius: 0.5rem;
+padding: 0.25rem;
+}
+.tab {
+font-size: 0.8rem;
+font-weight: 600;
+color: var(--text-muted);
+padding: 0.35rem 1rem;
+border-radius: 0.35rem;
+cursor: pointer;
+}
+.tab.active, .tab:hover {
+color: #fff;
+background-color: var(--accent);
+}
+.anime-grid {
+display: grid;
+grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+gap: 1.5rem;
+}
+.anime-card {
+position: relative;
+border-radius: 0.75rem;
+overflow: hidden;
+background-color: var(--bg-card);
+transition: transform 0.2s ease;
+}
+.anime-card:hover {
+transform: translateY(-4px);
+}
+.poster-wrapper {
+position: relative;
+aspect-ratio: 2 / 3;
+overflow: hidden;
+}
+.poster-wrapper img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+}
+.card-badges {
+position: absolute;
+bottom: 8px;
+left: 8px;
+display: flex;
+gap: 0.4rem;
+z-index: 2;
+}
+.card-badges .badge {
+font-size: 0.65rem;
+font-weight: 700;
+padding: 0.15rem 0.35rem;
+border-radius: 0.25rem;
+display: flex;
+align-items: center;
+gap: 0.2rem;
+background-color: rgba(0, 0, 0, 0.75);
+color: #fff;
+}
+.card-badges .badge.sub { color: #5efc82; }
+.card-badges .badge.dub { color: var(--accent); }
+.episode-badge {
+position: absolute;
+top: 8px;
+right: 8px;
+background-color: var(--accent);
+color: #fff;
+font-size: 0.7rem;
+font-weight: 700;
+padding: 0.15rem 0.45rem;
+border-radius: 0.25rem;
+z-index: 2;
+}
+.card-details {
+padding: 0.85rem 0.5rem;
+}
+.anime-grid-title {
+font-size: 0.875rem;
+font-weight: 600;
+color: #fff;
+line-height: 1.4;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.card-inner-link:hover .anime-grid-title {
+color: var(--accent);
+}
+/* ==========================================================================
+Aside Sidebar Panel Configuration & Child Modules
+========================================================================== */
+.sidebar-area {
+display: flex;
+flex-direction: column;
+gap: 2rem;
+min-height: 100%;
+}
+.sidebar-block {
+background-color: var(--bg-surface);
+border: 1px solid var(--border-color);
+border-radius: 1rem;
+padding: 1.5rem;
+}
+/* Flex pushes the lower-level genre block cleanly down */
+.top-anime-block {
+flex-grow: 1;
+}
+.sidebar-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 1.25rem;
+border-bottom: 1px solid var(--border-color);
+padding-bottom: 0.75rem;
+}
+.sidebar-header h3 {
+font-size: 1.15rem;
+font-weight: 700;
+color: #fff;
+}
+.sidebar-tabs {
+display: flex;
+gap: 0.5rem;
+}
+.stab {
+font-size: 0.75rem;
+font-weight: 600;
+color: var(--text-muted);
+cursor: pointer;
+padding: 0.15rem 0.45rem;
+}
+.stab.active, .stab:hover {
+color: var(--accent);
+}
+/* Ranked Lists Container */
+.top-list {
+list-style: none;
+display: flex;
+flex-direction: column;
+gap: 1rem;
+}
+.top-item {
+display: flex;
+align-items: center;
+gap: 1rem;
+border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+padding-bottom: 1rem;
+}
+.top-item:last-child {
+border-bottom: none;
+padding-bottom: 0;
+}
+.rank-num {
+font-size: 1.2rem;
+font-weight: 900;
+color: var(--text-muted);
+width: 24px;
+text-align: center;
+}
+.rank-1 { color: #ffc107; }
+.rank-2 { color: #e2e2e2; }
+.rank-3 { color: #cd7f32; }
+.top-poster {
+width: 45px;
+height: 60px;
+border-radius: 0.35rem;
+overflow: hidden;
+flex-shrink: 0;
+}
+.top-poster img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+}
+.top-meta {
+min-width: 0;
+}
+.top-meta h4 {
+font-size: 0.85rem;
+font-weight: 600;
+color: #fff;
+margin-bottom: 0.25rem;
+line-height: 1.3;
+}
+.top-meta a:hover h4 {
+color: var(--accent);
+}
+.top-counts {
+display: flex;
+align-items: center;
+gap: 0.5rem;
+font-size: 0.75rem;
+color: var(--text-muted);
+}
+.type-mini {
+text-transform: uppercase;
+background-color: var(--bg-card);
+padding: 0.05rem 0.25rem;
+border-radius: 0.2rem;
+}
+.genres-block {
+margin-top: auto;
+}
+.genre-cloud {
+display: flex;
+flex-wrap: wrap;
+gap: 0.5rem;
+}
+.genre-item {
+background-color: var(--bg-card);
+color: var(--text-muted);
+font-size: 0.75rem;
+font-weight: 500;
+padding: 0.4rem 0.8rem;
+border-radius: 0.35rem;
+border: 1px solid transparent;
+}
+.genre-item:hover {
+color: #fff;
+background-color: rgba(255, 60, 32, 0.1);
+border-color: var(--accent);
+}
+/* ==========================================================================
+Structural Core Site Global Footer Area
+========================================================================== */
+.main-footer {
+background-color: #0b0c0f;
+border-top: 1px solid var(--border-color);
+padding: 3rem 1.5rem;
+margin-top: auto;
+text-align: center;
+}
+.footer-container {
+max-width: 1200px;
+margin: 0 auto;
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 1.25rem;
+}
+.footer-logo {
+font-size: 1.8rem;
+font-weight: 900;
+color: #fff;
+}
+.footer-logo span {
+color: var(--accent);
+}
+.footer-text {
+font-size: 0.8rem;
+color: #4e5564;
+max-width: 700px;
+line-height: 1.6;
+}
+.footer-links {
+display: flex;
+gap: 2rem;
+}
+.footer-links a {
+font-size: 0.85rem;
+color: var(--text-muted);
+font-weight: 500;
+}
+.footer-links a:hover {
+color: var(--accent);
+}
+.copyright {
+font-size: 0.775rem;
+color: #4e5564;
+}
+@media (max-width: 1200px) {
+    .main-layout {
+    grid-template-columns: 1fr;
+    }
+    .sidebar-area {
+    min-height: auto;
+    }
+    .genres-block {
+    margin-top: 0;
+    }
+}
+@media (max-width: 768px) {
+.nav-container { padding: 0 1rem; }
+.search-bar, .social-icons { display: none; }
+.slide { height: 340px; }
+.slide-content { padding: 1.5rem; }
+.anime-title { font-size: 1.8rem; }
+.anime-description { display: none; }
+}
+@media (max-width: 480px) {
+.anime-grid {
+grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+gap: 1rem;
+}
+.trending-grid {
+grid-template-columns: 1fr;
+}
+.tab-filters { display: none; }
+}
+
+@media (max-width: 768px) {
+    .main-layout { padding: 1.25rem 1rem; gap: 1.5rem; }
+    .content-area { gap: 1.5rem; }
+    .spotlight-slides { min-height: 340px; }
+    .slide { min-height: 340px; height: auto; }
+    .slide-content { width: 100%; padding: 1.5rem; }
+    .anime-title { font-size: clamp(1.5rem, 6vw, 2rem); overflow-wrap: anywhere; }
+    .spotlight-controls { right: 1rem; bottom: 1rem; }
+}
+
+@media (max-width: 480px) {
+    .main-layout { padding: 1rem 0.75rem; }
+    .section-title { font-size: 1.2rem; }
+    .slide-content { padding: 1.1rem; }
+    .spotlight-slides, .slide { min-height: 320px; }
+    .spotlight-controls { right: 0.75rem; bottom: 0.75rem; gap: 0.5rem; }
+    .spotlight-arrow { width: 30px; height: 30px; }
+    .slide-buttons { flex-wrap: wrap; gap: 0.6rem; }
+    .btn-watch, .btn-detail { padding: 0.65rem 0.9rem; font-size: 0.8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .slide, .spotlight-dot, .spotlight-arrow { transition: none; }
+}

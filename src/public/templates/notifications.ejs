@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - RRAnime</title>
+    <link rel="stylesheet" href="/css/home.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="/css/notifications.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+    <main class="notifications-page">
+        <section class="notifications-panel">
+            <div class="notifications-heading">
+                <div>
+                    <h1><i class="fas fa-bell text-primary"></i> Notifications</h1>
+                    <p>Episode updates and replies to your comments.</p>
+                </div>
+                <span class="notification-count">
+                    <%= notifications ? notifications.length : 0 %> Updates
+                </span>
+            </div>
+
+            <% if (notifications && notifications.length > 0) { %>
+                <div class="notification-list">
+                    <% notifications.forEach(notification => { %>
+                        <article class="notification-card <%= notification.is_read ? 'is-read' : 'is-unread' %>">
+                            <div class="notification-icon" aria-hidden="true">
+                                <i class="fas <%= notification.notification_type === 'comment' ? 'fa-reply' : 'fa-play' %>"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-title-row">
+                                    <h2><%= notification.title || 'New episode available' %></h2>
+                                    <% if (!notification.is_read) { %>
+                                        <span class="unread-label">New</span>
+                                    <% } %>
+                                </div>
+                                <p><%= notification.message || `Episode ${notification.episode_number} is now available.` %></p>
+                                <time datetime="<%= new Date(notification.created_at).toISOString() %>">
+                                    <%= new Date(notification.created_at).toLocaleString() %>
+                                </time>
+                            </div>
+                            <div class="notification-actions">
+                                <% if (!notification.is_read) { %>
+                                    <form action="/notifications/<%= notification.notification_type === 'comment' ? 'comments/' : '' %><%= notification.id %>/read" method="POST">
+                                        <button class="notification-action-btn mark-read-btn" type="submit" title="Mark as read">
+                                            <i class="fas fa-check" aria-hidden="true"></i> Mark read
+                                        </button>
+                                    </form>
+                                <% } %>
+                                <a class="notification-watch-link" href="/anime/<%= notification.anime_id %>/<%= notification.episode_number %><%= notification.notification_type === 'comment' ? `#comment-${notification.comment_id}` : '' %>" aria-label="<%= notification.notification_type === 'comment' ? 'View reply' : `Watch episode ${notification.episode_number}` %>">
+                                    <%= notification.notification_type === 'comment' ? 'View reply' : 'Watch' %> <i class="fas fa-arrow-right"></i>
+                                </a>
+                                <form action="/notifications/<%= notification.notification_type === 'comment' ? 'comments/' : '' %><%= notification.id %>/delete" method="POST" onsubmit="return confirm('Delete this notification?');">
+                                    <button class="notification-action-btn delete-notification-btn" type="submit" title="Delete notification" aria-label="Delete notification">
+                                        <i class="fas fa-trash-alt" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="notifications-empty-state">
+                    <div class="empty-icon-wrapper"><i class="far fa-bell-slash"></i></div>
+                    <h2>You're all caught up</h2>
+                    <p>Episode updates and replies to your comments will show up here.</p>
+                    <a href="/home" class="btn-back-home"><i class="fas fa-house"></i> Back to Home</a>
+                </div>
+            <% } %>
+        </section>
+    </main>
+<%- include('footer') %>
+</body>
+</html>

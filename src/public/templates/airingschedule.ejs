@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Timetable | Air Times - RRAnime</title>
+    <link rel="stylesheet" href="/css/home.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="/css/airingschedule.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+    <div class="schedule-full-wrapper">
+        <div class="schedule-container-fluid">
+            <div class="schedule-header-actions">
+                <h1 class="timetable-heading"><i class="fas fa-calendar-days text-primary"></i> Weekly Release Timetable</h1>
+                <div class="timezone-notice">*All times processed in your local timezone</div>
+            </div>
+            <div class="schedule-tabs-container">
+                <% const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']; %>
+                <% daysOrder.forEach(day => { %>
+                    <div class="schedule-day-column-tab <%= (day === today) ? 'active-today' : '' %>">
+                        <div class="tab-day-title"><%= day %></div>
+                        <div class="tab-day-sub text-primary">
+                            <%= schedule[day] ? schedule[day].length : 0 %> Shows
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+            <div class="schedule-week-grid-canvas">
+                <% daysOrder.forEach(day => { %>
+                    <div class="grid-day-lane <%= (day === today) ? 'active-today' : '' %>">
+                        <div class="lane-header-mobile"><%= day %></div>
+                        <div class="lane-cards-stack">
+                            <% if (schedule[day] && schedule[day].length > 0) { %>
+                                <% schedule[day].forEach(anime => { %>
+                                    <div class="schedule-grid-card">
+                                        <div class="card-poster-area">
+                                            <img src="<%= anime.image_url %>" alt="<%= anime.title %>" loading="lazy">
+                                            <div class="card-time-overlay"><%= anime.airTime %></div>
+                                            <div class="card-ep-badge">Ep <%= anime.episode %></div>
+                                        </div>
+                                        <div class="card-text-details">
+                                            <% if (anime.mal_id) { %>
+                                                <a href="/anime/<%= anime.mal_id %>" class="anime-title-link">
+                                                    <h3 class="title-truncate"><%= anime.title %></h3>
+                                                </a>
+                                            <% } else { %>
+                                                <h3 class="title-truncate unlinked-title"><%= anime.title %></h3>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            <% } else { %>
+                                <div class="lane-empty-placeholder">No releases scheduled</div>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+
+        </div>
+    </div>
+<%- include('footer') %>
+</body>
+</html>

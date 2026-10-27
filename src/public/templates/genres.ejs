@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= Data.title %> - RRAnime</title>
+    <link rel="stylesheet" href="/css/genres.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+    <main class="airing-container">
+        <h1><i class="fas <%- Data.icon || 'fa-tags' %> pulse-icon"></i> <%= Data.title %></h1>
+        <% if (!genres || genres.length === 0) { %>
+            <div class="empty-state">
+                <i class="fas fa-tag"></i>
+                <p>No genre categories were found populated in the database layer.</p>
+            </div>
+        <% } else { %>
+            <div class="genres-grid">
+                <% genres.forEach(genre => { %>
+                    <% if (genre.genre_id === 12 ) { %>
+                        <a href="/hentai>" class="genre-card">
+                    <% } else { %>
+                        <a href="/genres/<%= genre.genre_id %>" class="genre-card">
+                    <% } %>
+                        <div class="genre-card-content">
+                            <div class="genre-info">
+                                <span class="genre-name"><%= genre.genre_name %></span>
+                                <span class="genre-count"><%= genre.total_shows %> Titles</span>
+                            </div>
+                            <div class="genre-arrow">
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        <% } %>
+    </main>
+<%- include('footer') %>
+</body>
+</html>
