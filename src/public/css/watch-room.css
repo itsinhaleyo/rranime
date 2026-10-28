@@ -1,0 +1,243 @@
+.watch-rooms-page,
+.watch-room-page {
+    width: min(1500px, calc(100% - 2rem));
+    margin: 2rem auto 4rem;
+    color: #f5f6fa;
+}
+
+.watch-rooms-intro,
+.watch-room-heading,
+.watch-room-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+}
+
+.watch-rooms-intro {
+    padding: 1.5rem 0 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+.watch-room-eyebrow {
+    display: block;
+    margin-bottom: .5rem;
+    color: #ff4937;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .14em;
+}
+
+.watch-rooms-intro h1,
+.watch-room-heading h1 {
+    margin: 0;
+    font-size: clamp(1.65rem, 3vw, 2.25rem);
+}
+
+.watch-rooms-intro p,
+.watch-room-heading p,
+.watch-room-section-heading p {
+    margin: .55rem 0 0;
+    color: #aeb5c2;
+}
+
+.watch-room-secondary-button,
+.watch-room-share,
+.watch-room-end {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    min-height: 2.65rem;
+    padding: .65rem .9rem;
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: .65rem;
+    color: #f5f6fa;
+    background: #20232c;
+    text-decoration: none;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.watch-room-secondary-button:hover,
+.watch-room-share:hover { background: #2a2e39; }
+
+.watch-room-list-section { padding-top: 1.6rem; }
+.watch-room-section-heading { margin-bottom: 1rem; }
+.watch-room-section-heading h2 { margin: 0; font-size: 1.25rem; }
+.watch-room-count { color: #aeb5c2; font-size: .9rem; }
+
+.watch-room-list { display: grid; gap: .75rem; }
+
+.watch-room-list-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: .85rem;
+    color: inherit;
+    background: #171a22;
+    text-decoration: none;
+}
+
+.watch-room-list-card:hover { border-color: #ff4937; background: #1d2029; }
+.watch-room-list-icon { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; flex: 0 0 auto; border-radius: 50%; color: #fff; background: #ff4937; }
+.watch-room-list-copy { display: grid; gap: .3rem; min-width: 0; }
+.watch-room-list-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-room-list-copy span { color: #aeb5c2; font-size: .84rem; }
+.watch-room-join-label { margin-left: auto; color: #ff7566; font-weight: 700; white-space: nowrap; }
+
+.watch-room-empty {
+    display: grid;
+    justify-items: center;
+    gap: .55rem;
+    padding: 3rem 1rem;
+    border: 1px dashed rgba(255, 255, 255, .16);
+    border-radius: .85rem;
+    color: #aeb5c2;
+    text-align: center;
+}
+.watch-room-empty > i { color: #ff4937; font-size: 1.8rem; }
+.watch-room-empty strong { color: #fff; }
+
+.watch-room-heading { margin-bottom: 1.25rem; }
+.watch-room-back { display: inline-block; margin-bottom: .8rem; color: #aeb5c2; text-decoration: none; }
+.watch-room-back:hover { color: #fff; }
+.watch-room-code { color: #fff; font-family: monospace; letter-spacing: .08em; }
+.watch-room-heading-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
+.watch-room-end { border-color: rgba(255, 73, 55, .4); color: #ff7669; }
+.watch-room-end:hover { background: rgba(255, 73, 55, .1); }
+
+@media (min-width: 601px) {
+    .watch-room-page { padding-top: 3rem; }
+}
+
+.watch-room-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 350px);
+    gap: 1rem;
+    align-items: start;
+}
+
+.watch-room-player-column,
+.watch-room-chat-panel {
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: .85rem;
+    background: #171a22;
+}
+
+.watch-room-player-frame { position: relative; width: 100%; padding-top: 56.25%; background: #050608; }
+.watch-room-player-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.watch-room-start-overlay { position: absolute; z-index: 2; inset: auto auto 1.25rem 1.25rem; display: inline-flex; align-items: center; gap: .55rem; padding: .8rem 1.1rem; border: 0; border-radius: 999px; color: #111; background: #fff; font: inherit; font-weight: 800; cursor: pointer; box-shadow: 0 6px 30px #0008; }
+.watch-room-start-overlay[hidden] { display: none; }
+.watch-room-closed-notice { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; color: #fff; background: #050608; text-align: center; font-size: 1.2rem; font-weight: 800; }
+
+.watch-room-player-info { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .9rem 1rem; }
+.watch-room-player-info > div { display: grid; gap: .3rem; min-width: 0; }
+.watch-room-player-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-room-player-info span { color: #aeb5c2; font-size: .85rem; }
+.watch-room-sync-status { text-align: right; }
+.watch-room-episode-controls { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .65rem 1rem; border-top: 1px solid rgba(255,255,255,.08); }
+.watch-room-episode-controls > span { color: #aeb5c2; font-size: .88rem; white-space: nowrap; }
+.watch-room-episode-controls > span strong { color: #fff; }
+.watch-room-episode-button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.4rem; padding: .5rem .8rem; border: 1px solid rgba(255,255,255,.14); border-radius: .55rem; color: #f5f6fa; background: #20232c; font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
+.watch-room-episode-button:hover:not(:disabled) { border-color: #ff4937; background: #2a2e39; }
+.watch-room-episode-button:disabled { opacity: .45; cursor: not-allowed; }
+.watch-room-host-note { padding: .75rem 1rem; border-top: 1px solid rgba(255,255,255,.08); color: #aeb5c2; font-size: .83rem; }
+.watch-room-audio-row { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; border-top: 1px solid rgba(255,255,255,.08); }
+.watch-room-audio-label { color: #c8ccd4; font-size: .78rem; font-weight: 750; }
+.watch-room-audio-label i { margin-right: .25rem; color: #ff7566; }
+.watch-room-audio-options { display: inline-flex; gap: .25rem; padding: .2rem; border: 1px solid rgba(255,255,255,.1); border-radius: .55rem; background: #101218; }
+.watch-room-audio-option { padding: .38rem .7rem; border: 0; border-radius: .38rem; color: #aeb5c2; background: transparent; font: inherit; font-size: .7rem; font-weight: 850; cursor: pointer; }
+.watch-room-audio-option.active { color: #fff; background: #ff4937; }
+.watch-room-audio-option:disabled { opacity: .55; cursor: wait; }
+.watch-room-audio-hint, .watch-room-audio-guest { color: #8f97a6; font-size: .72rem; }
+.watch-room-audio-guest { color: #f1f2f5; }
+.watch-room-audio-guest span { color: #8f97a6; font-weight: 500; }
+
+.room-series-information { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 1rem; padding: 1rem; border-top: 1px solid rgba(255,255,255,.08); background: linear-gradient(130deg, rgba(255,73,55,.07), transparent 48%); }
+.room-series-poster-wrap { position: relative; align-self: start; overflow: hidden; border-radius: .6rem; background: #20232c; }
+.room-series-poster { display: block; width: 100%; aspect-ratio: 2 / 3; object-fit: cover; }
+.room-series-rating { position: absolute; left: .4rem; bottom: .4rem; padding: .22rem .38rem; border-radius: .3rem; color: #fff; background: #0c0e12d9; font-size: .62rem; font-weight: 800; }
+.room-series-content { min-width: 0; }
+.room-series-eyebrow { color: #ff7566; font-size: .67rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.room-series-eyebrow i { margin-right: .25rem; }
+.room-series-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; margin-top: .45rem; }
+.room-series-title-row h2 { min-width: 0; margin: 0; font-size: clamp(1.05rem, 2vw, 1.45rem); line-height: 1.25; }
+.room-series-title-row h2 a { color: #fff; text-decoration: none; }
+.room-series-title-row h2 a:hover { color: #ff887b; }
+.room-series-current-episode { flex: 0 0 auto; padding: .32rem .55rem; border: 1px solid rgba(255,73,55,.3); border-radius: 999px; color: #ffab9f; background: rgba(255,73,55,.1); font-size: .7rem; font-weight: 800; }
+.room-series-alt-title { margin-top: .28rem; color: #aeb5c2; font-size: .76rem; }
+.room-series-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+.room-series-tags > span { display: inline-flex; align-items: center; gap: .3rem; padding: .28rem .48rem; border: 1px solid rgba(255,255,255,.1); border-radius: .35rem; color: #c8ccd4; background: rgba(255,255,255,.025); font-size: .66rem; text-transform: capitalize; }
+.room-series-tags i { color: #ff7566; }
+.room-series-tags .room-series-score i { color: #ffc247; }
+.room-series-genres { margin-top: .6rem; color: #aeb5c2; font-size: .72rem; line-height: 1.5; }
+.room-series-genres strong { margin-right: .3rem; color: #e2e4e9; }
+.room-series-synopsis { margin-top: .6rem; color: #bec4ce; font-size: .74rem; line-height: 1.6; }
+.room-series-synopsis summary { width: fit-content; color: #e9ebef; font-weight: 700; cursor: pointer; }
+.room-series-synopsis summary::marker { color: #ff4937; }
+.room-series-synopsis p { margin-top: .4rem; white-space: pre-line; }
+.room-series-divider { height: 1px; margin: .75rem 0 .65rem; background: rgba(255,255,255,.09); }
+.room-series-episode-heading { color: #fff; font-size: .77rem; font-weight: 750; }
+.room-series-episode-heading i { margin-right: .3rem; color: #ff7566; }
+.room-series-episode-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .45rem; margin-top: .55rem; }
+.room-series-episode-grid > div { display: grid; align-content: start; gap: .3rem; min-width: 0; padding: .55rem; border: 1px solid rgba(255,255,255,.08); border-radius: .45rem; background: rgba(0,0,0,.12); }
+.room-series-episode-grid > div > span { color: #aeb5c2; font-size: .62rem; }
+.room-series-episode-grid strong { color: #f3f4f6; font-size: .7rem; overflow-wrap: anywhere; }
+.room-series-episode-grid small { color: #aeb5c2; font-size: .63rem; }
+.room-series-progress { margin-top: .65rem; }
+.room-series-progress > div { display: flex; justify-content: space-between; gap: .75rem; margin-bottom: .32rem; color: #aeb5c2; font-size: .64rem; }
+.room-series-progress-track { display: block; height: 4px; overflow: hidden; border-radius: 99px; background: #282c36; }
+.room-series-progress-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ff4937, #ff967f); transition: width .35s ease; }
+
+.watch-room-chat-panel { display: flex; flex-direction: column; min-height: 540px; max-height: min(78vh, 850px); }
+.watch-room-chat-header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: 1rem; border-bottom: 1px solid rgba(255,255,255,.08); }
+.watch-room-chat-header h2 { margin: 0 0 .25rem; font-size: 1rem; }
+.watch-room-chat-header span { color: #aeb5c2; font-size: .78rem; }
+.watch-room-chat-header span i { color: #45d483; font-size: .55rem; }
+.watch-room-episode-link { color: #ff7566; font-size: .78rem; text-decoration: none; }
+.watch-room-viewers { display: flex; gap: .4rem; overflow-x: auto; padding: .65rem .85rem; border-bottom: 1px solid rgba(255,255,255,.08); }
+.watch-room-viewer-chip { flex: 0 0 auto; padding: .35rem .6rem; border-radius: 999px; color: #d8dce5; background: #292d37; font-size: .74rem; }
+.watch-room-viewer-chip.host { color: #ffb9b1; background: rgba(255,73,55,.16); }
+.watch-room-messages { display: flex; flex: 1; flex-direction: column; gap: .8rem; overflow-y: auto; padding: 1rem; }
+.watch-room-message-meta { display: flex; align-items: baseline; gap: .5rem; }
+.watch-room-message-meta strong { color: #fff; font-size: .82rem; }
+.watch-room-message-meta time { color: #8e96a5; font-size: .68rem; }
+.watch-room-message p { margin: .25rem 0 0; color: #d9dce4; font-size: .88rem; line-height: 1.45; overflow-wrap: anywhere; }
+.watch-room-chat-form { display: flex; gap: .5rem; padding: .75rem; border-top: 1px solid rgba(255,255,255,.08); }
+.watch-room-chat-form input { min-width: 0; flex: 1; padding: .7rem .8rem; border: 1px solid rgba(255,255,255,.12); border-radius: .55rem; color: #fff; background: #20232c; font: inherit; }
+.watch-room-chat-form button { width: 2.8rem; border: 0; border-radius: .55rem; color: #fff; background: #ff4937; cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+@media (max-width: 900px) {
+    .watch-room-layout { grid-template-columns: minmax(0, 1fr); }
+    .watch-room-chat-panel { min-height: 420px; max-height: 65vh; }
+}
+
+@media (max-width: 600px) {
+    .watch-rooms-page, .watch-room-page { width: min(100% - 1rem, 1500px); margin-top: 1rem; }
+    .watch-rooms-intro, .watch-room-heading { align-items: flex-start; flex-direction: column; }
+    .watch-rooms-intro .watch-room-secondary-button { align-self: flex-start; }
+    .watch-room-heading-actions { width: 100%; }
+    .watch-room-heading-actions button { flex: 1; }
+    .watch-room-list-card { gap: .65rem; padding: .75rem; }
+    .watch-room-list-copy span { font-size: .74rem; }
+    .watch-room-join-label { font-size: .82rem; }
+    .watch-room-player-info { align-items: flex-start; flex-direction: column; }
+    .watch-room-sync-status { text-align: left; }
+    .watch-room-episode-controls { flex-wrap: wrap; }
+    .watch-room-episode-button { flex: 1 1 9rem; }
+    .watch-room-audio-row { align-items: flex-start; flex-wrap: wrap; }
+    .watch-room-audio-hint { flex-basis: 100%; }
+    .room-series-information { grid-template-columns: 76px minmax(0, 1fr); gap: .7rem; padding: .75rem; }
+    .room-series-title-row { align-items: flex-start; flex-direction: column-reverse; gap: .45rem; }
+    .room-series-title-row h2 { font-size: 1rem; }
+    .room-series-current-episode { padding: .26rem .45rem; font-size: .64rem; }
+    .room-series-tags { gap: .3rem; margin-top: .55rem; }
+    .room-series-tags > span { padding: .25rem .36rem; font-size: .61rem; }
+    .room-series-episode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

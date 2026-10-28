@@ -50,7 +50,7 @@
                                     <div class="episode-badge"><%= anime.type || 'TV' %></div>
                                 </div>
                                 <div class="card-details">
-                                    <h3 class="anime-grid-title title-truncate"><%= anime.english_title || anime.title %></h3>
+                                    <h3 class="anime-grid-title title-truncate" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h3>
                                     <div class="watchlist-card-meta">
                                         <span><i class="fas fa-star text-primary"></i> <%= anime.score || '0.0' %></span>
                                     </div>

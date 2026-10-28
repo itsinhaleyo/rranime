@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             suggestions.innerHTML = animeList.map(anime => {
                 const title = escapeHtml(anime.english_title || anime.title || 'Untitled anime');
+                const japaneseTitle = escapeHtml(anime.japanese_title || anime.title || title);
                 const type = escapeHtml(anime.type || 'Anime');
                 const score = escapeHtml(anime.score || 'N/A');
                 const animeId = encodeURIComponent(anime.mal_id);
@@ -50,11 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<a class="landing-suggestion-item" role="option" href="/anime/${animeId}">
                     ${image}
                     <span class="landing-suggestion-copy">
-                        <strong>${title}</strong>
+                        <strong data-anime-title data-title-en="${title}" data-title-ja="${japaneseTitle}">${title}</strong>
                         <small>${type} · ★ ${score}</small>
                     </span>
                 </a>`;
             }).join('');
+            window.applyAnimeTitleLanguage?.(document.documentElement.dataset.titleLanguage || 'en');
             suggestions.hidden = false;
             input.setAttribute('aria-expanded', 'true');
         } catch (error) {

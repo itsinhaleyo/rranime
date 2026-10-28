@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/css/recent-comments.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/script/home-slider.js" defer></script>
+    <script src="/script/estimated-schedule.js" defer></script>
 </head>
 <body>
 <%- include('header') %>
@@ -25,9 +26,9 @@
                                 <div class="slide-content">
                                     <span class="spotlight-tag"><i class="fas fa-fire"></i> Spotlight <%= String(index + 1).padStart(2, '0') %></span>
                                     <% if (index === 0) { %>
-                                        <h1 class="anime-title"><%= featured.english_title || featured.title %></h1>
+                                        <h1 class="anime-title" data-anime-title data-title-en="<%= featured.english_title || featured.title %>" data-title-ja="<%= featured.japanese_title || featured.title %>"><%= featured.english_title || featured.title %></h1>
                                     <% } else { %>
-                                        <h2 class="anime-title"><%= featured.english_title || featured.title %></h2>
+                                        <h2 class="anime-title" data-anime-title data-title-en="<%= featured.english_title || featured.title %>" data-title-ja="<%= featured.japanese_title || featured.title %>"><%= featured.english_title || featured.title %></h2>
                                     <% } %>
                                     <div class="anime-meta">
                                         <span class="meta-item"><i class="fas fa-tv"></i> <%= featured.type || 'TV' %></span>
@@ -76,7 +77,7 @@
                                 </div>
                                 <div class="trending-info">
                                     <a href="/anime/<%= anime.mal_id %>" class="title-link">
-                                        <h3 class="title-truncate"><%= anime.title %></h3>
+                                        <h3 class="title-truncate" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h3>
                                     </a>
                                 </div>
                             </div>
@@ -108,7 +109,7 @@
                                         <div class="episode-badge">Ep <%= anime.episodes || '??' %></div>
                                     </div>
                                     <div class="card-details">
-                                        <h3 class="anime-grid-title"><%= anime.title %></h3>
+                                        <h3 class="anime-grid-title" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h3>
                                     </div>
                                 </a>
                             </div>
@@ -116,6 +117,52 @@
                     <% } else { %>
                         <p class="empty-notice">No recent entries listed.</p>
                     <% } %>
+                </div>
+            </section>
+            <section class="estimated-schedule" aria-labelledby="estimated-schedule-heading">
+                <div class="estimated-schedule-heading">
+                    <div>
+                        <h2 class="section-title" id="estimated-schedule-heading"><i class="fas fa-calendar-days text-primary" aria-hidden="true"></i> Estimated Schedule</h2>
+                        <p>Upcoming subtitled episode releases. Times are estimates.</p>
+                    </div>
+                    <a href="/airingschedule/sub" class="estimated-schedule-full-link">Full schedule <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                </div>
+                <div class="estimated-schedule-days" role="tablist" aria-label="Choose a schedule date">
+                    <% estimatedSchedule.forEach((day, index) => { %>
+                        <button type="button" class="estimated-schedule-day <%= day.isToday ? 'active' : '' %>" role="tab"
+                                id="estimated-schedule-tab-<%= index %>" aria-controls="estimated-schedule-panel-<%= index %>"
+                                aria-selected="<%= day.isToday ? 'true' : 'false' %>" tabindex="<%= day.isToday ? '0' : '-1' %>"
+                                data-schedule-index="<%= index %>">
+                            <span class="estimated-schedule-day-name"><%= day.isToday ? 'Today' : day.day %></span>
+                            <span class="estimated-schedule-day-date"><%= day.dateLabel %></span>
+                        </button>
+                    <% }); %>
+                </div>
+                <div class="estimated-schedule-panels">
+                    <% estimatedSchedule.forEach((day, index) => { %>
+                        <div class="estimated-schedule-panel" role="tabpanel" id="estimated-schedule-panel-<%= index %>"
+                             aria-labelledby="estimated-schedule-tab-<%= index %>" <%= day.isToday ? '' : 'hidden' %>>
+                            <% if (day.releases.length) { %>
+                                <div class="estimated-schedule-release-list">
+                                    <% day.releases.forEach(release => { %>
+                                        <div class="estimated-schedule-release">
+                                            <time class="estimated-release-time"><%= release.time %></time>
+                                            <div class="estimated-release-title">
+                                                <% if (release.mal_id) { %>
+                                                    <a href="/anime/<%= release.mal_id %>" data-anime-title data-title-en="<%= release.title %>" data-title-ja="<%= release.japanese_title || release.title %>"><%= release.title %></a>
+                                                <% } else { %>
+                                                    <span data-anime-title data-title-en="<%= release.title %>" data-title-ja="<%= release.japanese_title || release.title %>"><%= release.title %></span>
+                                                <% } %>
+                                            </div>
+                                            <span class="estimated-release-episode"><i class="fas fa-play" aria-hidden="true"></i> Episode <%= release.episode %></span>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <p class="estimated-schedule-empty">No releases estimated for this day.</p>
+                            <% } %>
+                        </div>
+                    <% }); %>
                 </div>
             </section>
         </main>
@@ -139,7 +186,7 @@
                                 </div>
                                 <div class="top-meta">
                                     <a href="/anime/<%= anime.mal_id %>">
-                                        <h4 class="title-truncate"><%= anime.title %></h4>
+                                        <h4 class="title-truncate" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h4>
                                     </a>
                                     <div class="top-counts">
                                         <span><i class="fas fa-star text-primary"></i> <%= anime.score || '0.0' %></span>

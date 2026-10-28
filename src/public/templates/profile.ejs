@@ -25,6 +25,33 @@
             <% } %>
         </section>
 
+        <section class="activity-rank-panel" aria-labelledby="activity-rank-heading">
+            <div class="activity-rank-topline">
+                <div>
+                    <p class="profile-eyebrow">COMMUNITY ACTIVITY</p>
+                    <h2 id="activity-rank-heading"><%= activityRank.isAdmin ? 'Administrator' : activityRank.name %>
+                        <% if (activityRank.isAdmin) { %><span class="activity-admin-badge">ADMIN</span><% } %>
+                    </h2>
+                    <p class="activity-rank-description">
+                        <% if (activityRank.isAdmin) { %>
+                            Your ADMIN badge is reserved for this account.
+                        <% } else { %>
+                            Earn 10 XP the first time you open an episode and 5 XP for a comment or reply. Each activity type awards XP up to 5 times every 24 hours.
+                        <% } %>
+                    </p>
+                </div>
+                <div class="activity-xp-total"><strong><%= activityRank.xp.toLocaleString() %></strong><span>XP</span></div>
+            </div>
+            <% if (!activityRank.isAdmin && activityRank.nextRank) { %>
+                <div class="activity-rank-progress" role="progressbar" aria-label="Progress to <%= activityRank.nextRank %>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= activityRank.progress %>">
+                    <div class="activity-rank-progress-fill" style="width: <%= activityRank.progress %>%"></div>
+                </div>
+                <p class="activity-rank-next"><%= activityRank.xpToNext.toLocaleString() %> XP to <strong><%= activityRank.nextRank %></strong></p>
+            <% } else if (!activityRank.isAdmin) { %>
+                <p class="activity-rank-next">You’ve reached the highest activity rank.</p>
+            <% } %>
+        </section>
+
         <div class="profile-editor-grid">
             <form class="profile-form" action="/profile" method="POST">
                 <div class="profile-form-heading">
@@ -70,7 +97,8 @@
                                 <img id="preview-avatar" alt="Profile avatar" hidden>
                             <% } %>
                         </div>
-                        <span class="profile-card-tag"><i class="fas fa-circle"></i> ANIME FAN</span>
+                        <span class="profile-card-tag"><i class="fas fa-circle"></i> RRANIME MEMBER</span>
+                        <span class="profile-preview-rank <%= activityRank.isAdmin ? 'admin' : '' %>"><%= activityRank.name %></span>
                         <h2 id="preview-name"><%= profile.display_name || 'Your display name' %></h2>
                         <p id="preview-bio"><%= profile.bio || 'Your bio will show up here. Share what you love watching.' %></p>
                         <div class="profile-card-footer"><i class="fas fa-play"></i> RRAnime member</div>

@@ -16,13 +16,13 @@
         <div class="schedule-container-fluid">
             <div class="schedule-header-actions">
                 <h1 class="timetable-heading"><i class="fas fa-calendar-days text-primary"></i> Weekly Release Timetable</h1>
-                <div class="timezone-notice">*All times processed in your local timezone</div>
+                <div class="timezone-notice">Upcoming 7 days · Past weekdays roll forward to their next airing</div>
             </div>
             <div class="schedule-tabs-container">
                 <% const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']; %>
                 <% daysOrder.forEach(day => { %>
                     <div class="schedule-day-column-tab <%= (day === today) ? 'active-today' : '' %>">
-                        <div class="tab-day-title"><%= day %></div>
+                        <div class="tab-day-title"><%= day %> <span class="day-date"><%= dayDates[day] %></span></div>
                         <div class="tab-day-sub text-primary">
                             <%= schedule[day] ? schedule[day].length : 0 %> Shows
                         </div>
@@ -32,7 +32,7 @@
             <div class="schedule-week-grid-canvas">
                 <% daysOrder.forEach(day => { %>
                     <div class="grid-day-lane <%= (day === today) ? 'active-today' : '' %>">
-                        <div class="lane-header-mobile"><%= day %></div>
+                        <div class="lane-header-mobile"><%= day %> <span class="day-date"><%= dayDates[day] %></span></div>
                         <div class="lane-cards-stack">
                             <% if (schedule[day] && schedule[day].length > 0) { %>
                                 <% schedule[day].forEach(anime => { %>
@@ -45,10 +45,10 @@
                                         <div class="card-text-details">
                                             <% if (anime.mal_id) { %>
                                                 <a href="/anime/<%= anime.mal_id %>" class="anime-title-link">
-                                                    <h3 class="title-truncate"><%= anime.title %></h3>
+                                                    <h3 class="title-truncate" data-anime-title data-title-en="<%= anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.title %></h3>
                                                 </a>
                                             <% } else { %>
-                                                <h3 class="title-truncate unlinked-title"><%= anime.title %></h3>
+                                                <h3 class="title-truncate unlinked-title" data-anime-title data-title-en="<%= anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.title %></h3>
                                             <% } %>
                                         </div>
                                     </div>

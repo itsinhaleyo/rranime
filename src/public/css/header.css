@@ -35,6 +35,15 @@
     align-items: center;
     gap: 1.5rem;
 }
+.title-language-control { display: flex; flex-direction: column; align-items: flex-start; gap: .16rem; }
+.title-language-label { color: var(--text-main); font-size: .62rem; font-weight: 650; line-height: 1; }
+.title-language-switch { position: relative; display: flex; align-items: center; justify-content: space-between; width: 3.05rem; height: 1.22rem; padding: .1rem .28rem; border: 0; border-radius: 99px; background: #343846; color: #fff; font: inherit; cursor: pointer; }
+.title-language-option { z-index: 1; width: 1rem; color: #c7c9d1; font-size: .56rem; font-weight: 850; line-height: 1; text-align: center; transition: color .18s; }
+.title-language-thumb { position: absolute; top: .12rem; left: .13rem; width: 1.32rem; height: .98rem; border-radius: 99px; background: var(--accent); transition: transform .18s ease; }
+.title-language-switch[aria-checked="true"] .title-language-thumb { transform: translateX(1.47rem); }
+.title-language-switch[aria-checked="false"] .title-language-en,
+.title-language-switch[aria-checked="true"] .title-language-ja { color: #fff; }
+.title-language-switch:focus-visible { outline: 2px solid var(--text-main); outline-offset: 3px; }
 .sidebar-toggle {
     background: none;
     border: none;

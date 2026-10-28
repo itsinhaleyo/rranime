@@ -34,15 +34,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchBarContainer.style.display = 'none';
                 return;
             }
-            searchBarContainer.innerHTML = animeList.map(anime => `
-                <div class="suggestion-item" data-id="${anime.mal_id}" data-title="${anime.title}">
-                    <img src="${anime.image_url}" alt="${anime.title}" class="suggestion-thumb">
-                    <div class="suggestion-info">
-                        <span class="suggestion-title">${anime.title}</span>
-                        <small class="suggestion-meta">${anime.type} • ⭐ ${anime.score || 'N/A'}</small>
+            const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[character]));
+            searchBarContainer.innerHTML = animeList.map(anime => {
+                const englishTitle = escapeHtml(anime.english_title || anime.title || 'Untitled anime');
+                const japaneseTitle = escapeHtml(anime.japanese_title || anime.title || englishTitle);
+                const image = escapeHtml(anime.image_url || '');
+                return `
+                    <div class="suggestion-item" data-id="${escapeHtml(anime.mal_id)}" data-title="${englishTitle}">
+                        <img src="${image}" alt="" class="suggestion-thumb">
+                        <div class="suggestion-info">
+                            <span class="suggestion-title" data-anime-title data-title-en="${englishTitle}" data-title-ja="${japaneseTitle}">${englishTitle}</span>
+                            <small class="suggestion-meta">${escapeHtml(anime.type || 'Anime')} • ⭐ ${escapeHtml(anime.score || 'N/A')}</small>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
+            window.applyAnimeTitleLanguage?.(document.documentElement.dataset.titleLanguage || 'en');
             searchBarContainer.style.display = 'block';
         } catch (error) {
             console.error('Error fetching anime suggestions:', error);

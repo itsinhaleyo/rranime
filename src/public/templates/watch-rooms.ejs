@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch Rooms - RRAnime</title>
+    <link rel="stylesheet" href="/css/home.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="/css/watch-room.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+<main class="watch-rooms-page">
+    <section class="watch-rooms-intro">
+        <div>
+            <span class="watch-room-eyebrow">WATCH TOGETHER</span>
+            <h1>Episode watch rooms</h1>
+            <p>Create a room from an episode page, then share its link. Zoko playback, episode changes, and room chat stay together here.</p>
+        </div>
+        <a class="watch-room-secondary-button" href="/home"><i class="fas fa-house" aria-hidden="true"></i> Back home</a>
+    </section>
+
+    <section class="watch-room-list-section" aria-labelledby="watch-room-list-heading">
+        <div class="watch-room-section-heading">
+            <div>
+                <h2 id="watch-room-list-heading">Open rooms</h2>
+                <p>Join an active room to watch and chat.</p>
+            </div>
+            <span class="watch-room-count"><%= rooms.length %> <%= rooms.length === 1 ? 'room' : 'rooms' %></span>
+        </div>
+        <% if (rooms.length) { %>
+            <div class="watch-room-list">
+                <% rooms.forEach(room => { %>
+                    <a class="watch-room-list-card" href="/watch2gether/<%= encodeURIComponent(room.room_id) %>">
+                        <span class="watch-room-list-icon"><i class="fas fa-play" aria-hidden="true"></i></span>
+                        <span class="watch-room-list-copy">
+                            <strong><%= room.anime_title %></strong>
+                            <span>Episode <%= room.current_episode %> · <%= room.audio.toUpperCase() %> · Hosted by <%= room.host_display_name || `Anime fan #${room.host_user_id}` %></span>
+                        </span>
+                        <span class="watch-room-join-label">Join <i class="fas fa-arrow-right" aria-hidden="true"></i></span>
+                    </a>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <div class="watch-room-empty">
+                <i class="fas fa-users" aria-hidden="true"></i>
+                <strong>No open rooms yet</strong>
+                <span>Open an episode and create the first room.</span>
+            </div>
+        <% } %>
+    </section>
+</main>
+<%- include('footer') %>
+</body>
+</html>

@@ -37,7 +37,7 @@
             <% if (trending && trending.length > 0) { %>
             <% trending.forEach(anime => { %>
                 <a href="/anime/<%= anime.mal_id %>" class="tag-link">
-                    <%= anime.title %>
+                    <span data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></span>
                 </a>
             <% }); %>
             <% } else { %>
@@ -72,7 +72,7 @@
                                 <span class="airing-label"><i class="fas fa-circle" aria-hidden="true"></i> Airing</span>
                             </div>
                             <div class="landing-airing-meta">
-                                <h3><%= anime.english_title || anime.title %></h3>
+                                <h3 data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h3>
                                 <span><%= anime.type || 'TV' %> · <i class="fas fa-star" aria-hidden="true"></i> <%= anime.score || 'N/A' %></span>
                             </div>
                         </a>

@@ -4,6 +4,18 @@
 .profile-eyebrow { color: var(--accent); font-size: .7rem; font-weight: 800; letter-spacing: .16em; margin-bottom: .5rem; }
 .profile-heading h1 { color: var(--text-main); font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; margin: 0 0 .5rem; }
 .profile-heading p:last-child { color: var(--text-muted); margin: 0; }
+.activity-rank-panel { margin: -0.75rem 0 1.5rem; padding: 1.25rem 1.5rem; border: 1px solid var(--border-color); border-radius: 1rem; background: linear-gradient(120deg, rgba(255, 60, 32, .09), var(--bg-card) 55%); }
+.activity-rank-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.activity-rank-topline .profile-eyebrow { margin: 0 0 .25rem; }
+.activity-rank-topline h2 { display: flex; align-items: center; gap: .55rem; margin: 0; color: var(--text-main); font-size: 1.2rem; }
+.activity-rank-description { max-width: 720px; margin: .4rem 0 0; color: var(--text-muted); font-size: .78rem; line-height: 1.5; }
+.activity-xp-total { display: flex; align-items: baseline; gap: .35rem; color: var(--accent); white-space: nowrap; }
+.activity-xp-total strong { color: var(--text-main); font-size: 1.5rem; }
+.activity-xp-total span { font-size: .8rem; font-weight: 800; }
+.activity-rank-progress { height: .45rem; margin-top: 1rem; overflow: hidden; border-radius: 1rem; background: #292d37; }
+.activity-rank-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), #ff8a62); transition: width .25s ease; }
+.activity-rank-next { margin: .4rem 0 0; color: var(--text-muted); font-size: .72rem; text-align: right; }
+.activity-admin-badge { display: inline-flex; align-items: center; border: 1px solid rgba(255, 60, 32, .4); border-radius: 99px; padding: .2rem .5rem; background: rgba(255, 60, 32, .12); color: #ff806b; font-size: .58rem; font-weight: 900; letter-spacing: .07em; }
 .profile-saved { color: #8de0a7; background: rgba(78, 190, 112, .1); border: 1px solid rgba(78, 190, 112, .25); border-radius: .6rem; padding: .7rem .9rem; font-size: .85rem; white-space: nowrap; }
 .profile-editor-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 1.5rem; align-items: start; }
 .profile-form, .profile-preview-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1rem; }
@@ -33,10 +45,12 @@
 .profile-avatar img[hidden], .profile-avatar span[hidden] { display: none; }
 .profile-card-tag { display: inline-flex; align-items: center; gap: .35rem; color: var(--profile-accent); font-size: .62rem; letter-spacing: .09em; font-weight: 800; }
 .profile-card-tag i { font-size: .45rem; }
+.profile-preview-rank { display: inline-flex; margin: .5rem 0 0; padding: .25rem .55rem; border: 1px solid color-mix(in srgb, var(--profile-accent) 40%, transparent); border-radius: 99px; background: color-mix(in srgb, var(--profile-accent) 12%, transparent); color: var(--profile-accent); font-size: .65rem; font-weight: 800; }
+.profile-preview-rank.admin { border-color: rgba(255, 60, 32, .4); background: rgba(255, 60, 32, .12); color: #ff806b; }
 .profile-card h2 { color: var(--text-main); font-size: 1.25rem; margin: .45rem 0 .5rem; overflow-wrap: anywhere; }
 .profile-card-content > p { min-height: 3.2em; color: #b2b6c0; font-size: .84rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .profile-card-footer { border-top: 1px solid var(--border-color); padding-top: .8rem; color: var(--text-muted); font-size: .72rem; }
 .profile-card-footer i { color: var(--profile-accent); margin-right: .35rem; }
 .preview-note { margin: .9rem 0 0; color: var(--text-muted); text-align: center; font-size: .73rem; }
 @media (max-width: 760px) { .profile-editor-grid { grid-template-columns: 1fr; } .profile-preview-panel { grid-row: 1; } }
-@media (max-width: 480px) { .profile-heading { align-items: flex-start; flex-direction: column; } .profile-form-heading { align-items: flex-start; flex-direction: column; gap: .3rem; } }
+@media (max-width: 480px) { .profile-heading { align-items: flex-start; flex-direction: column; } .profile-form-heading { align-items: flex-start; flex-direction: column; gap: .3rem; } .activity-rank-panel { padding: 1rem; } .activity-rank-description { max-width: 100%; } }

@@ -1,5 +1,5 @@
 require('dotenv').config();
-const path = require('path'), express = require('express'), session = require('express-session'), MySQLStore = require('express-mysql-session')(session), axios = require('axios'), passport = require('passport'), nodemailer = require('nodemailer'), vhost = require('vhost'), cron = require('node-cron');
+const path = require('path'), crypto = require('crypto'), express = require('express'), session = require('express-session'), MySQLStore = require('express-mysql-session')(session), axios = require('axios'), passport = require('passport'), nodemailer = require('nodemailer'), vhost = require('vhost'), cron = require('node-cron');
 
 // Connect to Database
 let db;
@@ -81,6 +81,67 @@ function checkAuthenticated(req, res, next) {
     res.redirect('/login');
 }
 
+const activityRanks = [
+    { name: 'Newbie', xp: 0 },
+    { name: 'Side Character', xp: 1000 },
+    { name: 'Casual Watcher', xp: 2500 },
+    { name: 'Seasonal Viewer', xp: 10000 },
+    { name: 'Certified Weeb', xp: 25000 },
+    { name: 'Anime Veteran', xp: 50000 },
+    { name: 'Anime Legend', xp: 100000 }
+];
+
+function getActivityRank(userId, totalXp) {
+    const xp = Math.max(0, Number(totalXp) || 0);
+    if (String(userId) === '1') {
+        return { name: 'ADMIN', isAdmin: true, xp, progress: 100, nextRank: null, xpToNext: 0 };
+    }
+    let rankIndex = 0;
+    for (let i = 1; i < activityRanks.length; i += 1) {
+        if (xp >= activityRanks[i].xp) rankIndex = i;
+        else break;
+    }
+    const currentRank = activityRanks[rankIndex];
+    const nextRank = activityRanks[rankIndex + 1] || null;
+    const progress = nextRank
+        ? Math.min(100, Math.floor(((xp - currentRank.xp) / (nextRank.xp - currentRank.xp)) * 100))
+        : 100;
+    return {
+        name: currentRank.name,
+        isAdmin: false,
+        xp,
+        progress,
+        nextRank: nextRank?.name || null,
+        xpToNext: nextRank ? Math.max(0, nextRank.xp - xp) : 0,
+        nextRankXp: nextRank?.xp || null
+    };
+}
+
+const airingScheduleCache = new Map();
+const AIRING_SCHEDULE_CACHE_TTL_MS = 5 * 60 * 1000;
+const watchRoomClients = new Map();
+
+function sendWatchRoomEvent(roomId, eventName, payload) {
+    const clients = watchRoomClients.get(roomId);
+    if (!clients) return;
+    const message = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+    for (const client of clients.values()) {
+        try { client.response.write(message); } catch { /* disconnected clients are removed on close */ }
+    }
+}
+
+function getWatchRoomPresence(roomId) {
+    const clients = watchRoomClients.get(roomId);
+    if (!clients) return [];
+    const members = new Map();
+    for (const client of clients.values()) members.set(client.userId, client.displayName);
+    return Array.from(members, ([userId, displayName]) => ({ userId, displayName }));
+}
+
+function broadcastWatchRoomPresence(roomId) {
+    sendWatchRoomEvent(roomId, 'presence', { members: getWatchRoomPresence(roomId) });
+}
+
 rranime.get('/login', (req, res) => {
     res.render('login', {});
 });
@@ -92,6 +153,7 @@ rranime.post('/login', passport.authenticate('local', {
 
 rranime.get('/profile', checkAuthenticated, async (req, res) => {
     try {
+        await ensureUserXpReady();
         const [rows] = await db.execute(
             `SELECT display_name, bio, avatar_url, accent_color
              FROM user_profiles WHERE user_id = ?`,
@@ -103,7 +165,12 @@ rranime.get('/profile', checkAuthenticated, async (req, res) => {
             avatar_url: '',
             accent_color: '#ff3c20'
         };
-        res.render('profile', { profile, saved: req.query.saved === '1' });
+        const [xpRows] = await db.execute(
+            'SELECT xp FROM user_xp_totals WHERE user_id = ?',
+            [String(req.user.id)]
+        );
+        const activityRank = getActivityRank(req.user.id, xpRows[0]?.xp || 0);
+        res.render('profile', { profile, activityRank, saved: req.query.saved === '1' });
     } catch (err) {
         console.error('Error loading user profile:', err);
         res.status(500).send('Unable to load your profile.');
@@ -153,7 +220,7 @@ rranime.get('/logout', (req, res, next) => {
 rranime.get('/', checkAuthenticated, async (req, res) => {
     try {
         const [trendingTags] = await db.query(
-            `SELECT mal_id, COALESCE(english_title, title) AS title
+            `SELECT mal_id, title, english_title, japanese_title
              FROM mal_anime
              WHERE status = 'currently_airing'
                AND (rating IS NULL OR rating != 'rx')
@@ -161,23 +228,29 @@ rranime.get('/', checkAuthenticated, async (req, res) => {
              LIMIT 4`
         );
         const [airingAnime] = await db.query(
-            `SELECT mal_id, title, english_title, type, episodes, score, image_url
+            `SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url
              FROM mal_anime
              WHERE status = 'currently_airing'
                AND (rating IS NULL OR rating != 'rx')
              ORDER BY COALESCE(score, 0) DESC
              LIMIT 6`
         );
+        await ensureUserXpReady();
         const [recentComments] = await db.execute(`
             SELECT c.comment_id, c.parent_comment_id, c.body, c.created_at,
-                   c.anime_id, c.episode_number, a.title AS anime_title, a.english_title,
-                   c.user_id, p.display_name, p.avatar_url, p.accent_color
+                   c.anime_id, c.episode_number, a.title AS anime_title, a.english_title, a.japanese_title,
+                   c.user_id, p.display_name, p.avatar_url, p.accent_color,
+                   COALESCE(xp.xp, 0) AS xp
             FROM episode_comments c
             INNER JOIN mal_anime a ON a.mal_id = c.anime_id
             LEFT JOIN user_profiles p ON p.user_id = c.user_id
+            LEFT JOIN user_xp_totals xp ON xp.user_id = c.user_id
             ORDER BY c.created_at DESC, c.comment_id DESC
             LIMIT 5
         `);
+        recentComments.forEach(comment => {
+            comment.activityRank = getActivityRank(comment.user_id, comment.xp);
+        });
         res.render('landing', { 
             trending: trendingTags,
             airingAnime,
@@ -192,46 +265,94 @@ rranime.get('/', checkAuthenticated, async (req, res) => {
 rranime.get('/home', checkAuthenticated, async (req, res) => {
     try {
         const [spotlight] = await db.query(
-            `SELECT mal_id, title, english_title, type, episodes, score, synopsis, image_url 
+            `SELECT mal_id, title, english_title, japanese_title, type, episodes, score, synopsis, image_url 
              FROM mal_anime 
              WHERE type = 'TV' AND status = 'currently_airing'
                AND (rating IS NULL OR rating != 'rx')
              ORDER BY COALESCE(score, 0) DESC LIMIT 5`
         );
         const [latestEpisodes] = await db.query(
-            `SELECT mal_id, title, type, episodes, image_url 
+            `SELECT mal_id, title, english_title, japanese_title, type, episodes, image_url 
              FROM mal_anime 
              WHERE status = 'currently_airing' and rating != 'rx'
              ORDER BY last_updated DESC LIMIT 15`
         );
         const [sidebarTopAnime] = await db.query(
-            `SELECT mal_id, title, type, score, image_url 
+            `SELECT mal_id, title, english_title, japanese_title, type, score, image_url 
              FROM mal_anime 
              ORDER BY score DESC LIMIT 10`
         );
         const [airingAnime] = await db.execute(`
-            SELECT mal_id, title, english_title, type, episodes, score, image_url 
+            SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url 
             FROM mal_anime 
             WHERE status = 'currently_airing' and rating != 'rx'
             ORDER BY score DESC
             LIMIT 12
         `);
+        await ensureUserXpReady();
         const [recentComments] = await db.execute(`
             SELECT c.comment_id, c.parent_comment_id, c.body, c.created_at,
-                   c.anime_id, c.episode_number, a.title AS anime_title, a.english_title,
-                   c.user_id, p.display_name, p.avatar_url, p.accent_color
+                   c.anime_id, c.episode_number, a.title AS anime_title, a.english_title, a.japanese_title,
+                   c.user_id, p.display_name, p.avatar_url, p.accent_color,
+                   COALESCE(xp.xp, 0) AS xp
             FROM episode_comments c
             INNER JOIN mal_anime a ON a.mal_id = c.anime_id
             LEFT JOIN user_profiles p ON p.user_id = c.user_id
+            LEFT JOIN user_xp_totals xp ON xp.user_id = c.user_id
             ORDER BY c.created_at DESC, c.comment_id DESC
             LIMIT 5
         `);
+        recentComments.forEach(comment => {
+            comment.activityRank = getActivityRank(comment.user_id, comment.xp);
+        });
+        try {
+            await refreshAiringSchedule('sub');
+        } catch (scheduleRefreshError) {
+            console.warn('Could not refresh home estimated schedule; using saved entries:', scheduleRefreshError.message);
+        }
+        const scheduleToday = new Date();
+        const scheduleStart = new Date(scheduleToday);
+        scheduleStart.setHours(0, 0, 0, 0);
+        const scheduleEnd = new Date(scheduleStart);
+        scheduleEnd.setDate(scheduleEnd.getDate() + 7);
+        const [homeScheduleRows] = await db.execute(`
+            SELECT mal_id, title, japanese_title, episode, airing_at
+            FROM airing_schedule_entries
+            WHERE schedule_type = 'sub' AND airing_at >= ? AND airing_at < ?
+            ORDER BY airing_at ASC
+        `, [Math.floor(scheduleStart.getTime() / 1000), Math.floor(scheduleEnd.getTime() / 1000)]);
+        const dateKey = date => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        const estimatedSchedule = Array.from({ length: 7 }, (_, index) => {
+            const date = new Date(scheduleStart);
+            date.setDate(date.getDate() + index);
+            return {
+                key: dateKey(date),
+                day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                dateLabel: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                isToday: index === 0,
+                releases: []
+            };
+        });
+        const scheduleByDate = new Map(estimatedSchedule.map(day => [day.key, day]));
+        homeScheduleRows.forEach(row => {
+            const airingDate = new Date(Number(row.airing_at) * 1000);
+            const day = scheduleByDate.get(dateKey(airingDate));
+            if (!day) return;
+            day.releases.push({
+                mal_id: row.mal_id,
+                title: row.title,
+                japanese_title: row.japanese_title || row.title,
+                episode: row.episode,
+                time: airingDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+            });
+        });
         res.render('home', {
             airingAnime: airingAnime,
             spotlightAnime: spotlight,
             latestAnime: latestEpisodes,
             sidebarAnime: sidebarTopAnime,
-            recentComments
+            recentComments,
+            estimatedSchedule
         });
 
     } catch (err) {
@@ -245,7 +366,7 @@ rranime.get('/anime/:animeid', checkAuthenticated, async (req, res) => {
         const animeId = req.params.animeid;
         const activeUserId = req.user.id;
         const [rows] = await db.query(
-            `SELECT a.mal_id, a.title, a.english_title, a.type, a.episodes, a.status, a.score, a.synopsis, a.image_url, a.rating,
+            `SELECT a.mal_id, a.title, a.english_title, a.japanese_title, a.type, a.episodes, a.status, a.score, a.synopsis, a.image_url, a.rating,
                     GROUP_CONCAT(g.genre_name SEPARATOR ', ') AS genres
              FROM mal_anime a
              LEFT JOIN anime_genres_mapping ag ON a.mal_id = ag.anime_id
@@ -278,7 +399,7 @@ rranime.get('/anime/:animeid', checkAuthenticated, async (req, res) => {
             WHERE user_id = ? AND anime_id = ?
         `, [activeUserId, animeId]);
         const [recommendedAnime] = await db.query(
-            `SELECT mal_id, title, type, score, image_url 
+            `SELECT mal_id, title, english_title, japanese_title, type, score, image_url 
              FROM mal_anime 
              WHERE mal_id != ? AND type = ?
              ORDER BY score DESC LIMIT 5`, [animeId, animeDetails.type]
@@ -300,9 +421,14 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
         const animeId = req.params.animeid;
         const currentEp = parseInt(req.params.episode) || 1;
         const [animeRows] = await db.query(
-            `SELECT mal_id, title, english_title, status, type, episodes, image_url 
-             FROM mal_anime 
-             WHERE mal_id = ?`, [animeId]
+            `SELECT a.mal_id, a.title, a.english_title, a.japanese_title, a.status, a.type,
+                    a.episodes, a.image_url, a.score, a.synopsis, a.rating,
+                    (SELECT GROUP_CONCAT(g.genre_name ORDER BY g.genre_name SEPARATOR ', ')
+                     FROM anime_genres_mapping ag
+                     INNER JOIN mal_genres g ON g.genre_id = ag.genre_id
+                     WHERE ag.anime_id = a.mal_id) AS genres
+             FROM mal_anime a
+             WHERE a.mal_id = ?`, [animeId]
         );
         if (animeRows.length === 0) {
             return res.status(404).send("Anime Profile Index Record Not Found.");
@@ -321,12 +447,33 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
             }
         }
         const totalEpisodesCount = animeDetails.episodes || 12;
+        const selectedAudio = req.query.audio === 'dub' ? 'dub' : 'sub';
+        const autoPlayNext = req.query.autoplay === '1';
+        const allowedProviders = ['zoko', 'anixo', 'megavid'];
+        let selectedProvider = allowedProviders.includes(req.query.provider) ? req.query.provider : 'zoko';
+        if (selectedProvider === 'anixo' && !anilistData?.anilistId) selectedProvider = 'zoko';
+        const malId = animeDetails.mal_id;
+        const anilistId = anilistData ? anilistData.anilistId : null;
+        let initialStreamUrl;
+        if (selectedProvider === 'anixo') {
+            initialStreamUrl = `https://anixo.buzz/embed/ani/${encodeURIComponent(anilistId)}/${encodeURIComponent(currentEp)}/${selectedAudio}?color=%23e63946`;
+        } else if (selectedProvider === 'megavid') {
+            const sourceType = malId ? 'mal' : 'ani';
+            const sourceId = malId || anilistId;
+            initialStreamUrl = `https://megavid.buzz/${sourceType}/${encodeURIComponent(sourceId)}/${encodeURIComponent(currentEp)}/${selectedAudio}?color=%23e63946&autoplay=true`;
+        } else {
+            initialStreamUrl = `https://zokoanime.video/stream/mal/${encodeURIComponent(malId)}/${encodeURIComponent(currentEp)}/${selectedAudio}?color=ff3c20${autoPlayNext ? '&autoplay=true' : ''}`;
+        }
         if (currentEp >= 1 && currentEp <= totalEpisodesCount) {
-            await db.execute(`
+            const [watchInsert] = await db.execute(`
                 INSERT IGNORE INTO user_watched_episodes (user_id, anime_id, episode_number)
                 VALUES (?, ?, ?)
             `, [req.user.id, animeDetails.mal_id, currentEp]);
+            if (watchInsert.affectedRows > 0) {
+                await awardActivityXpSafely(req.user.id, 'watch', `${animeDetails.mal_id}:${currentEp}`, 10, 5);
+            }
         }
+        await ensureUserXpReady();
         const [watchedEpisodeRows] = await db.execute(`
             SELECT episode_number
             FROM user_watched_episodes
@@ -334,12 +481,17 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
         `, [req.user.id, animeDetails.mal_id]);
         const [commentRows] = await db.execute(`
             SELECT c.comment_id, c.parent_comment_id, c.user_id, c.body, c.created_at,
-                   p.display_name, p.avatar_url, p.accent_color
+                   p.display_name, p.avatar_url, p.accent_color,
+                   COALESCE(xp.xp, 0) AS xp
             FROM episode_comments c
             LEFT JOIN user_profiles p ON p.user_id = c.user_id
+            LEFT JOIN user_xp_totals xp ON xp.user_id = c.user_id
             WHERE c.anime_id = ? AND c.episode_number = ?
             ORDER BY c.created_at ASC, c.comment_id ASC
         `, [animeDetails.mal_id, currentEp]);
+        commentRows.forEach(comment => {
+            comment.activityRank = getActivityRank(comment.user_id, comment.xp);
+        });
         const commentById = new Map(commentRows.map(comment => [String(comment.comment_id), { ...comment, replies: [] }]));
         const topLevelComments = [];
         for (const comment of commentById.values()) {
@@ -352,12 +504,46 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
         const [currentProfileRows] = await db.execute(`
             SELECT display_name, avatar_url FROM user_profiles WHERE user_id = ?
         `, [String(req.user.id)]);
+        let nextAiring = null;
+        if (animeDetails.status === 'currently_airing') {
+            try {
+                const scheduleAnime = await getAiringSchedule(selectedAudio);
+                const scheduledTitle = scheduleAnime.find(item => Number(item.idMal) === Number(malId));
+                const nowTimestamp = Math.floor(Date.now() / 1000);
+                const nextScheduleNode = (scheduledTitle?.airingSchedule?.nodes || [])
+                    .filter(node => Number(node.airingAt) > nowTimestamp && Number(node.airingAt) > 0)
+                    .sort((left, right) => Number(left.airingAt) - Number(right.airingAt))[0];
+                if (nextScheduleNode) {
+                    nextAiring = {
+                        episode: nextScheduleNode.episode,
+                        airingAt: Number(nextScheduleNode.airingAt)
+                    };
+                }
+            } catch (scheduleError) {
+                console.warn(`Could not load ${selectedAudio} episode schedule for MAL ${malId}:`, scheduleError.message);
+            }
+
+            // AniList is a useful fallback when a sub schedule entry is missing from the feed.
+            if (!nextAiring && selectedAudio === 'sub'
+                && anilistData?.status === 'RELEASING'
+                && Number.isFinite(Number(anilistData.nextAiringAt))
+                && Number(anilistData.nextAiringAt) > 0) {
+                nextAiring = {
+                    episode: anilistData.nextAiringEpisode,
+                    airingAt: Number(anilistData.nextAiringAt)
+                };
+            }
+        }
         res.render('watch', {
             anime: animeDetails,
             currentEpisode: currentEp,
             totalEpisodes: totalEpisodesCount,
+            selectedProvider,
+            selectedAudio,
+            initialStreamUrl,
+            nextAiring,
             watchedEpisodes: watchedEpisodeRows.map(row => Number(row.episode_number)),
-            anilistId: anilistData ? anilistData.anilistId : null,
+            anilistId,
             comments: topLevelComments,
             commentCount: commentRows.length,
             currentUserId: String(req.user.id),
@@ -382,10 +568,11 @@ rranime.post('/anime/:animeid/:episode/comments', checkAuthenticated, async (req
     try {
         const [animeRows] = await db.execute('SELECT mal_id FROM mal_anime WHERE mal_id = ?', [animeId]);
         if (!animeRows.length) return res.status(404).send('Anime not found.');
-        await db.execute(`
+        const [commentInsert] = await db.execute(`
             INSERT INTO episode_comments (user_id, anime_id, episode_number, body)
             VALUES (?, ?, ?, ?)
         `, [String(req.user.id), animeId, episodeNumber, body]);
+        await awardActivityXpSafely(req.user.id, 'comment', commentInsert.insertId, 5, 5);
         res.redirect(`/anime/${animeId}/${episodeNumber}#comments`);
     } catch (err) {
         console.error('Error posting episode comment:', err);
@@ -431,6 +618,7 @@ rranime.post('/anime/:animeid/:episode/comments/:commentId/reply', checkAuthenti
             `, [recipientUserId, userId, result.insertId, animeId, episodeNumber]);
         }
         await connection.commit();
+        await awardActivityXpSafely(userId, 'comment', result.insertId, 5, 5);
         res.redirect(`/anime/${animeId}/${episodeNumber}#comment-${parentCommentId}`);
     } catch (err) {
         await connection.rollback();
@@ -460,10 +648,381 @@ rranime.post('/anime/:animeid/:episode/comments/:commentId/delete', checkAuthent
     }
 });
 
+rranime.get('/watch2gether', checkAuthenticated, async (req, res) => {
+    try {
+        const [rooms] = await db.execute(`
+            SELECT r.room_id, r.anime_id, r.anime_title, r.current_episode, r.audio,
+                   r.updated_at, p.display_name AS host_display_name
+            FROM watch_rooms r
+            LEFT JOIN user_profiles p ON p.user_id = r.host_user_id
+            ORDER BY r.updated_at DESC
+            LIMIT 50
+        `);
+        res.render('watch-rooms', { rooms });
+    } catch (error) {
+        console.error('Could not load watch rooms:', error);
+        res.status(500).send('Unable to load watch rooms.');
+    }
+});
+
+rranime.post('/watch2gether/create', checkAuthenticated, async (req, res) => {
+    const animeId = Number(req.body.anime_id);
+    const episode = Number(req.body.episode);
+    const audio = req.body.audio === 'dub' ? 'dub' : 'sub';
+    if (!Number.isSafeInteger(animeId) || animeId < 1 || !Number.isSafeInteger(episode) || episode < 1) {
+        return res.status(400).send('Choose a valid anime episode to create a room.');
+    }
+    try {
+        const [animeRows] = await db.execute(
+            'SELECT mal_id, title, english_title, episodes, status FROM mal_anime WHERE mal_id = ?',
+            [animeId]
+        );
+        if (!animeRows.length) return res.status(404).send('Anime not found.');
+        const anime = animeRows[0];
+        let anilist = null;
+        try { anilist = await fetchEpisodesFromAniList(animeId); } catch { /* MyAnimeList values remain a fallback */ }
+        const totalEpisodes = Number(anilist?.episodes) > 0
+            ? Number(anilist.episodes)
+            : (Number(anime.episodes) > 0 ? Number(anime.episodes) : 0);
+        const seriesFinished = anime.status === 'finished_airing' || anilist?.status === 'FINISHED';
+        if (seriesFinished && totalEpisodes > 0 && episode > totalEpisodes) {
+            return res.status(400).send('That episode is outside the known episode count.');
+        }
+        const roomId = crypto.randomBytes(9).toString('base64url');
+        await db.execute(`
+            INSERT INTO watch_rooms
+                (room_id, host_user_id, anime_id, anime_title, current_episode, total_episodes, series_finished, audio)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [roomId, String(req.user.id), animeId, anime.english_title || anime.title, episode, totalEpisodes, seriesFinished, audio]);
+        res.redirect(`/watch2gether/${roomId}/episode/${episode}`);
+    } catch (error) {
+        console.error('Could not create watch room:', error);
+        res.status(500).send('Unable to create the watch room.');
+    }
+});
+
+rranime.get(['/watch2gether/:roomId', '/watch2gether/:roomId/episode/:episode'], checkAuthenticated, async (req, res) => {
+    try {
+        const [roomRows] = await db.execute('SELECT * FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!roomRows.length) return res.status(404).send('This watch room has ended or does not exist.');
+        const room = roomRows[0];
+        const canonicalRoomUrl = `/watch2gether/${encodeURIComponent(room.room_id)}/episode/${Number(room.current_episode)}`;
+        if (Number(req.params.episode) !== Number(room.current_episode)) {
+            return res.redirect(302, canonicalRoomUrl);
+        }
+        const [messageRows] = await db.execute(`
+            SELECT message_id, user_id, display_name, body, created_at
+            FROM watch_room_messages WHERE room_id = ?
+            ORDER BY message_id DESC LIMIT 50
+        `, [room.room_id]);
+        const [profileRows] = await db.execute(
+            'SELECT display_name FROM user_profiles WHERE user_id = ?',
+            [String(req.user.id)]
+        );
+        const [animeRows] = await db.execute(
+            `SELECT a.mal_id, a.title, a.english_title, a.japanese_title, a.image_url,
+                    a.type, a.episodes, a.status, a.score, a.synopsis, a.rating,
+                    (SELECT GROUP_CONCAT(g.genre_name ORDER BY g.genre_name SEPARATOR ', ')
+                     FROM anime_genres_mapping ag
+                     INNER JOIN mal_genres g ON g.genre_id = ag.genre_id
+                     WHERE ag.anime_id = a.mal_id) AS genres
+             FROM mal_anime a WHERE a.mal_id = ?`,
+            [room.anime_id]
+        );
+        const anime = animeRows[0] || {
+            mal_id: room.anime_id,
+            title: room.anime_title,
+            english_title: room.anime_title,
+            japanese_title: room.anime_title,
+            image_url: '',
+            episodes: room.total_episodes
+        };
+        res.render('watch-room', {
+            room,
+            anime,
+            messages: messageRows.reverse(),
+            currentUserId: String(req.user.id),
+            currentUserName: profileRows[0]?.display_name || `Anime fan #${req.user.id}`,
+            isHost: String(room.host_user_id) === String(req.user.id)
+        });
+    } catch (error) {
+        console.error('Could not open watch room:', error);
+        res.status(500).send('Unable to open the watch room.');
+    }
+});
+
+rranime.get('/api/watch-rooms/:roomId/events', checkAuthenticated, async (req, res) => {
+    try {
+        const [roomRows] = await db.execute('SELECT * FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!roomRows.length) return res.status(404).end();
+        const room = roomRows[0];
+        const [profileRows] = await db.execute(
+            'SELECT display_name FROM user_profiles WHERE user_id = ?',
+            [String(req.user.id)]
+        );
+        const client = {
+            response: res,
+            userId: String(req.user.id),
+            displayName: profileRows[0]?.display_name || `Anime fan #${req.user.id}`
+        };
+        res.set({
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache, no-transform',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        });
+        res.flushHeaders();
+        res.write(`event: room\ndata: ${JSON.stringify({
+            roomId: room.room_id,
+            animeId: room.anime_id,
+            title: room.anime_title,
+            hostUserId: String(room.host_user_id),
+            currentEpisode: Number(room.current_episode),
+            totalEpisodes: Number(room.total_episodes),
+            seriesFinished: Boolean(room.series_finished),
+            audio: room.audio,
+            position: Number(room.position_seconds),
+            paused: Boolean(room.is_paused),
+            host: String(room.host_user_id) === String(req.user.id)
+        })}\n\n`);
+        if (!watchRoomClients.has(room.room_id)) watchRoomClients.set(room.room_id, new Map());
+        const clients = watchRoomClients.get(room.room_id);
+        const clientId = crypto.randomBytes(8).toString('hex');
+        client.id = clientId;
+        clients.set(clientId, client);
+        broadcastWatchRoomPresence(room.room_id);
+        const heartbeat = setInterval(() => {
+            if (!res.writableEnded) res.write(': ping\n\n');
+        }, 20000);
+        req.on('close', () => {
+            clearInterval(heartbeat);
+            clients.delete(clientId);
+            if (!clients.size) watchRoomClients.delete(room.room_id);
+            else broadcastWatchRoomPresence(room.room_id);
+        });
+    } catch (error) {
+        console.error('Could not connect to watch room:', error);
+        if (!res.headersSent) res.status(500).end();
+        else res.end();
+    }
+});
+
+rranime.post('/api/watch-rooms/:roomId/messages', checkAuthenticated, async (req, res) => {
+    const body = String(req.body.body || '').trim();
+    if (!body || body.length > 500) return res.status(400).json({ error: 'Messages must be 1 to 500 characters.' });
+    try {
+        const [rooms] = await db.execute('SELECT room_id FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!rooms.length) return res.status(404).json({ error: 'This room has ended.' });
+        const [profileRows] = await db.execute(
+            'SELECT display_name FROM user_profiles WHERE user_id = ?',
+            [String(req.user.id)]
+        );
+        const displayName = profileRows[0]?.display_name || `Anime fan #${req.user.id}`;
+        const [result] = await db.execute(`
+            INSERT INTO watch_room_messages (room_id, user_id, display_name, body)
+            VALUES (?, ?, ?, ?)
+        `, [req.params.roomId, String(req.user.id), displayName, body]);
+        const message = {
+            messageId: String(result.insertId),
+            userId: String(req.user.id),
+            displayName,
+            body,
+            createdAt: new Date().toISOString()
+        };
+        sendWatchRoomEvent(req.params.roomId, 'chat', message);
+        res.json({ ok: true, message });
+    } catch (error) {
+        console.error('Could not post watch room message:', error);
+        res.status(500).json({ error: 'Unable to send your message.' });
+    }
+});
+
+rranime.post('/api/watch-rooms/:roomId/state', checkAuthenticated, async (req, res) => {
+    const position = Number(req.body.position);
+    const paused = Boolean(req.body.paused);
+    if (!Number.isFinite(position) || position < 0 || position > 21600) {
+        return res.status(400).json({ error: 'Invalid playback position.' });
+    }
+    try {
+        const [rooms] = await db.execute('SELECT host_user_id FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!rooms.length) return res.status(404).json({ error: 'This room has ended.' });
+        if (String(rooms[0].host_user_id) !== String(req.user.id)) {
+            return res.status(403).json({ error: 'Only the room host controls synced playback.' });
+        }
+        const sentAt = Date.now();
+        await db.execute(`
+            UPDATE watch_rooms SET position_seconds = ?, is_paused = ? WHERE room_id = ?
+        `, [position, paused, req.params.roomId]);
+        const state = { position, paused, sentAt };
+        sendWatchRoomEvent(req.params.roomId, 'state', state);
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Could not update watch room playback:', error);
+        res.status(500).json({ error: 'Unable to sync room playback.' });
+    }
+});
+
+rranime.post('/api/watch-rooms/:roomId/audio', checkAuthenticated, async (req, res) => {
+    const audio = req.body.audio === 'dub' ? 'dub' : req.body.audio === 'sub' ? 'sub' : null;
+    const position = Number(req.body.position);
+    const paused = Boolean(req.body.paused);
+    if (!audio || !Number.isFinite(position) || position < 0 || position > 21600) {
+        return res.status(400).json({ error: 'Choose a valid audio track.' });
+    }
+    try {
+        const [rooms] = await db.execute('SELECT host_user_id FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!rooms.length) return res.status(404).json({ error: 'This room has ended.' });
+        if (String(rooms[0].host_user_id) !== String(req.user.id)) {
+            return res.status(403).json({ error: 'Only the room host can change the room audio.' });
+        }
+        const [roomState] = await db.execute('SELECT current_episode FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!roomState.length) return res.status(404).json({ error: 'This room has ended.' });
+        await db.execute(`
+            UPDATE watch_rooms
+            SET audio = ?, position_seconds = ?, is_paused = ?
+            WHERE room_id = ?
+        `, [audio, position, paused, req.params.roomId]);
+        sendWatchRoomEvent(req.params.roomId, 'audio', {
+            audio,
+            position,
+            paused,
+            episode: Number(roomState[0].current_episode),
+            sentAt: Date.now()
+        });
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Could not change watch room audio:', error);
+        res.status(500).json({ error: 'Unable to change room audio.' });
+    }
+});
+
+rranime.post('/api/watch-rooms/:roomId/advance', checkAuthenticated, async (req, res) => {
+    try {
+        const [rooms] = await db.execute('SELECT * FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!rooms.length) return res.status(404).json({ error: 'This room has ended.' });
+        const room = rooms[0];
+        if (String(room.host_user_id) !== String(req.user.id)) {
+            return res.status(403).json({ error: 'Only the room host can advance episodes.' });
+        }
+        let seriesFinished = Boolean(room.series_finished);
+        let totalEpisodes = Number(room.total_episodes) || 0;
+        const [animeRows] = await db.execute('SELECT status, episodes FROM mal_anime WHERE mal_id = ?', [room.anime_id]);
+        if (animeRows[0]?.status === 'finished_airing') {
+            seriesFinished = true;
+            totalEpisodes = Number(animeRows[0].episodes) || totalEpisodes;
+        }
+        if (!seriesFinished && (totalEpisodes === 0 || Number(room.current_episode) >= totalEpisodes)) {
+            try {
+                const anilist = await fetchEpisodesFromAniList(room.anime_id);
+                if (anilist?.status === 'FINISHED') {
+                    seriesFinished = true;
+                    totalEpisodes = Number(anilist.episodes) || totalEpisodes;
+                }
+            } catch { /* retain the last saved series status when AniList is unavailable */ }
+        }
+        if (seriesFinished && totalEpisodes !== Number(room.total_episodes)) {
+            await db.execute('UPDATE watch_rooms SET series_finished = TRUE, total_episodes = ? WHERE room_id = ?', [totalEpisodes, room.room_id]);
+        } else if (seriesFinished && !room.series_finished) {
+            await db.execute('UPDATE watch_rooms SET series_finished = TRUE WHERE room_id = ?', [room.room_id]);
+        }
+        if (seriesFinished && totalEpisodes > 0 && Number(room.current_episode) >= totalEpisodes) {
+            const [deleteResult] = await db.execute(
+                'DELETE FROM watch_rooms WHERE room_id = ? AND current_episode = ?',
+                [room.room_id, room.current_episode]
+            );
+            if (deleteResult.affectedRows) {
+                sendWatchRoomEvent(room.room_id, 'closed', { reason: 'The final episode ended.' });
+                return res.json({ ended: true });
+            }
+            const [latestRoom] = await db.execute('SELECT current_episode FROM watch_rooms WHERE room_id = ?', [room.room_id]);
+            return res.json({ ended: false, episode: Number(latestRoom[0]?.current_episode || room.current_episode) });
+        }
+        const nextEpisode = Number(room.current_episode) + 1;
+        const [advanceResult] = await db.execute(`
+            UPDATE watch_rooms
+            SET current_episode = ?, position_seconds = 0, is_paused = FALSE
+            WHERE room_id = ? AND current_episode = ?
+        `, [nextEpisode, room.room_id, room.current_episode]);
+        if (!advanceResult.affectedRows) {
+            const [latestRoom] = await db.execute('SELECT current_episode FROM watch_rooms WHERE room_id = ?', [room.room_id]);
+            return res.json({ ended: false, episode: Number(latestRoom[0]?.current_episode || room.current_episode) });
+        }
+        sendWatchRoomEvent(room.room_id, 'episode', {
+            episode: nextEpisode,
+            position: 0,
+            paused: false,
+            sentAt: Date.now()
+        });
+        res.json({ ended: false, episode: nextEpisode });
+    } catch (error) {
+        console.error('Could not advance watch room episode:', error);
+        res.status(500).json({ error: 'Unable to advance the room.' });
+    }
+});
+
+rranime.post('/api/watch-rooms/:roomId/episode', checkAuthenticated, async (req, res) => {
+    const targetEpisode = Number(req.body.episode);
+    if (!Number.isSafeInteger(targetEpisode) || targetEpisode < 1) {
+        return res.status(400).json({ error: 'Choose a valid episode.' });
+    }
+    try {
+        const [rooms] = await db.execute('SELECT * FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!rooms.length) return res.status(404).json({ error: 'This room has ended.' });
+        const room = rooms[0];
+        if (String(room.host_user_id) !== String(req.user.id)) {
+            return res.status(403).json({ error: 'Only the room host can change episodes.' });
+        }
+        const currentEpisode = Number(room.current_episode);
+        const totalEpisodes = Number(room.total_episodes) || 0;
+        if (targetEpisode === currentEpisode) return res.json({ ok: true, episode: currentEpisode });
+        if (targetEpisode > currentEpisode + 1 || targetEpisode < currentEpisode - 1) {
+            return res.status(400).json({ error: 'Use the previous or next episode button.' });
+        }
+        if (targetEpisode > currentEpisode && totalEpisodes > 0 && targetEpisode > totalEpisodes) {
+            return res.status(409).json({ error: 'This is the last known episode.' });
+        }
+        const [update] = await db.execute(`
+            UPDATE watch_rooms
+            SET current_episode = ?, position_seconds = 0, is_paused = FALSE
+            WHERE room_id = ? AND current_episode = ?
+        `, [targetEpisode, room.room_id, currentEpisode]);
+        if (!update.affectedRows) {
+            const [latest] = await db.execute('SELECT current_episode FROM watch_rooms WHERE room_id = ?', [room.room_id]);
+            return res.status(409).json({ error: `The room is already on episode ${Number(latest[0]?.current_episode || currentEpisode)}.` });
+        }
+        sendWatchRoomEvent(room.room_id, 'episode', {
+            episode: targetEpisode,
+            position: 0,
+            paused: false,
+            sentAt: Date.now()
+        });
+        res.json({ ok: true, episode: targetEpisode });
+    } catch (error) {
+        console.error('Could not change watch room episode:', error);
+        res.status(500).json({ error: 'Unable to change the room episode.' });
+    }
+});
+
+rranime.post('/api/watch-rooms/:roomId/end', checkAuthenticated, async (req, res) => {
+    try {
+        const [rooms] = await db.execute('SELECT host_user_id FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        if (!rooms.length) return res.json({ ok: true });
+        if (String(rooms[0].host_user_id) !== String(req.user.id)) {
+            return res.status(403).json({ error: 'Only the room host can end the room.' });
+        }
+        await db.execute('DELETE FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
+        sendWatchRoomEvent(req.params.roomId, 'closed', { reason: 'The host ended the room.' });
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Could not end watch room:', error);
+        res.status(500).json({ error: 'Unable to end the room.' });
+    }
+});
+
 rranime.get('/airing', checkAuthenticated, async (req, res) => {
     try {
         const [airingAnime] = await db.execute(`
-            SELECT mal_id, title, english_title, type, episodes, score, image_url, rating
+            SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url, rating
             FROM mal_anime 
             WHERE status = 'currently_airing' and rating != 'rx'
             ORDER BY last_updated DESC
@@ -481,38 +1040,55 @@ rranime.get('/airing', checkAuthenticated, async (req, res) => {
 rranime.get('/airingschedule/:type', checkAuthenticated, async (req, res) => {
     try {
         const now = new Date();
-        const startOfWeek = Math.floor(new Date(now.setDate(now.getDate() - now.getDay())).setHours(0, 0, 0, 0) / 1000);
-        const endOfWeek = startOfWeek + (7 * 24 * 60 * 60);
-        const response = await fetch(`https://raw.githubusercontent.com/RockinChaos/AniSchedule/refs/heads/master/raw/${req.params.type}-schedule.json`);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch raw static dataset from GitHub repository source: ${response.status}`);
+        const scheduleType = String(req.params.type).toLowerCase();
+        if (!['sub', 'dub'].includes(scheduleType)) {
+            return res.status(404).send('Schedule type not found.');
         }
-        const animeList = await response.json();
+        const windowStartDate = new Date(now);
+        windowStartDate.setHours(0, 0, 0, 0);
+        const windowStart = Math.floor(windowStartDate.getTime() / 1000);
+        const windowEndDate = new Date(now);
+        windowEndDate.setHours(0, 0, 0, 0);
+        windowEndDate.setDate(windowEndDate.getDate() + 7);
+        const windowEnd = Math.floor(windowEndDate.getTime() / 1000);
+        try {
+            await refreshAiringSchedule(scheduleType);
+        } catch (refreshError) {
+            console.warn(`Could not refresh ${scheduleType} schedule; using saved entries:`, refreshError.message);
+        }
+        const [scheduleRows] = await db.execute(`
+            SELECT mal_id, title, japanese_title, image_url, episode, airing_at
+            FROM airing_schedule_entries
+            WHERE schedule_type = ? AND airing_at >= ? AND airing_at < ?
+            ORDER BY airing_at ASC
+        `, [scheduleType, windowStart, windowEnd]);
         const calendar = {
             Sunday: [], Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: []
         };
         const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const currentDayName = weekDays[new Date().getDay()];
-        animeList.forEach(anime => {
-            if (!anime.airingSchedule || !anime.airingSchedule.nodes) return;
-            anime.airingSchedule.nodes.forEach(node => {
-                if (node.airingAt >= startOfWeek && node.airingAt < endOfWeek) {
-                    const airDate = new Date(node.airingAt * 1000);
-                    const dayName = weekDays[airDate.getDay()];
-                    const timeString = airDate.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                    });
-                    calendar[dayName].push({
-                        mal_id: anime.idMal,
-                        title: anime.title.english || anime.title.romaji,
-                        image_url: anime.coverImage.large || anime.coverImage.extraLarge,
-                        episode: node.episode,
-                        airTime: timeString,
-                        rawTimestamp: node.airingAt
-                    });
-                }
+        const currentDayName = weekDays[now.getDay()];
+        const dayDates = Object.fromEntries(weekDays.map((day, index) => {
+            const daysAhead = (index - now.getDay() + 7) % 7;
+            const date = new Date(windowStartDate);
+            date.setDate(date.getDate() + daysAhead);
+            return [day, date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })];
+        }));
+        scheduleRows.forEach(row => {
+            const airDate = new Date(Number(row.airing_at) * 1000);
+            const dayName = weekDays[airDate.getDay()];
+            const timeString = airDate.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            calendar[dayName].push({
+                mal_id: row.mal_id,
+                title: row.title,
+                japanese_title: row.japanese_title || row.title,
+                image_url: row.image_url,
+                episode: row.episode,
+                airTime: timeString,
+                rawTimestamp: Number(row.airing_at)
             });
         });
         for (const day in calendar) {
@@ -520,7 +1096,8 @@ rranime.get('/airingschedule/:type', checkAuthenticated, async (req, res) => {
         }
         res.render('airingschedule', {
             schedule: calendar,
-            today: currentDayName
+            today: currentDayName,
+            dayDates
         });
     } catch (err) {
         console.error("Airing schedule generation pipeline error:", err);
@@ -531,7 +1108,7 @@ rranime.get('/airingschedule/:type', checkAuthenticated, async (req, res) => {
 rranime.get('/trending', checkAuthenticated, async (req, res) => {
     try {
         const [airingAnime] = await db.execute(`
-            SELECT mal_id, title, english_title, type, episodes, score, image_url 
+            SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url 
             FROM mal_anime 
             WHERE status = 'currently_airing' and rating != 'rx'
             ORDER BY score DESC
@@ -549,7 +1126,7 @@ rranime.get('/trending', checkAuthenticated, async (req, res) => {
 rranime.get('/hentai', checkAuthenticated, async (req, res) => {
     try {
         const [airingAnime] = await db.execute(`
-            SELECT mal_id, title, english_title, type, episodes, score, image_url 
+            SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url 
             FROM mal_anime 
             WHERE rating = 'rx'
             ORDER BY last_updated DESC
@@ -576,7 +1153,7 @@ rranime.get('/genres/:genreId', checkAuthenticated, async (req, res) => {
         }
         const currentGenreName = genreMeta[0].genre_name;
         const [genreAnime] = await db.execute(`
-            SELECT a.mal_id, a.title, a.english_title, a.type, a.episodes, a.score, a.image_url, a.rating
+            SELECT a.mal_id, a.title, a.english_title, a.japanese_title, a.type, a.episodes, a.score, a.image_url, a.rating
             FROM mal_anime a
             JOIN anime_genres_mapping ag ON a.mal_id = ag.anime_id
             WHERE ag.genre_id = ? AND a.rating != 'rx'
@@ -623,11 +1200,11 @@ rranime.get('/search', checkAuthenticated, async (req, res) => {
             return res.redirect('/home');
         }
         const [results] = await db.query(
-            `SELECT mal_id, title, english_title, type, episodes, score, image_url 
+            `SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url 
              FROM mal_anime 
-             WHERE title LIKE ? OR english_title LIKE ?
+             WHERE title LIKE ? OR english_title LIKE ? OR japanese_title LIKE ?
              ORDER BY score DESC LIMIT 36`, 
-            [`%${searchQuery}%`, `%${searchQuery}%`]
+            [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`]
         );
         res.render('searchresults', {
             searchKeyword: searchQuery,
@@ -643,14 +1220,14 @@ rranime.get('/watchlist', checkAuthenticated, async (req, res) => {
     try {
         const activeUserId = req.user && req.user.id ? req.user.id : "admin";
         const [watchlistAnime] = await db.query(`
-            SELECT a.mal_id, a.title, a.english_title, a.type, a.episodes, a.score, a.image_url, a.status
+            SELECT a.mal_id, a.title, a.english_title, a.japanese_title, a.type, a.episodes, a.score, a.image_url, a.status
             FROM mal_anime a
             INNER JOIN user_watchlist w ON a.mal_id = w.anime_id
             WHERE w.user_id = ?
             ORDER BY last_updated DESC
         `, [activeUserId]);
         const [sidebarTopAnime] = await db.query(`
-            SELECT mal_id, title, type, score, image_url 
+            SELECT mal_id, title, english_title, japanese_title, type, score, image_url 
             FROM mal_anime 
             ORDER BY score DESC LIMIT 10
         `);
@@ -872,14 +1449,14 @@ rranime.get('/api/anime-suggestions', checkAuthenticated, async (req, res) => {
     if (!query || query.length < 2) return res.json([]);
     try {
         const sql = `
-            SELECT mal_id, title, english_title, type, score, image_url 
+            SELECT mal_id, title, english_title, japanese_title, type, score, image_url 
             FROM mal_anime 
-            WHERE title LIKE ? OR english_title LIKE ? 
+            WHERE title LIKE ? OR english_title LIKE ? OR japanese_title LIKE ?
             ORDER BY COALESCE(score, 0) DESC
             LIMIT 5
         `;
         const searchTerm = `%${query}%`;
-        const [results] = await db.execute(sql, [searchTerm, searchTerm]);
+        const [results] = await db.execute(sql, [searchTerm, searchTerm, searchTerm]);
         res.json(results);
     } catch (error) {
         console.error(error);
@@ -938,11 +1515,12 @@ async function fetchAndSaveAllMALAnime() {
                 const node = edge.node;
                 if (!node) continue;
                 const insertAnimeSql = `
-                    INSERT INTO mal_anime (mal_id, title, english_title, type, episodes, status, score, rating, synopsis, image_url)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO mal_anime (mal_id, title, english_title, japanese_title, type, episodes, status, score, rating, synopsis, image_url)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE 
                         title = VALUES(title),
                         english_title = VALUES(english_title),
+                        japanese_title = VALUES(japanese_title),
                         type = VALUES(type),
                         episodes = VALUES(episodes),
                         status = VALUES(status),
@@ -954,6 +1532,7 @@ async function fetchAndSaveAllMALAnime() {
                 const malId = node.id;
                 const title = node.title;
                 const englishTitle = node.alternative_titles?.en || null;
+                const japaneseTitle = node.alternative_titles?.ja || null;
                 const type = node.media_type || null;
                 const episodes = node.num_episodes || null;
                 const status = node.status || null;
@@ -962,7 +1541,7 @@ async function fetchAndSaveAllMALAnime() {
                 const synopsis = node.synopsis || null;
                 const imageUrl = node.main_picture?.large || node.main_picture?.medium || null;
                 await db.query(insertAnimeSql, [
-                    malId, title, englishTitle, type, episodes, status, score, rating, synopsis, imageUrl
+                    malId, title, englishTitle, japaneseTitle, type, episodes, status, score, rating, synopsis, imageUrl
                 ]);
                 const apiGenres = node.genres || [];
                 if (apiGenres.length > 0) {
@@ -1039,11 +1618,12 @@ async function fetchAndSaveAiringMALAnime(isHourlyUpdate = false) {
                 const node = edge.node;
                 if (!node) continue;
                 const insertSql = `
-                    INSERT INTO mal_anime (mal_id, title, english_title, type, episodes, status, score, rating, synopsis, image_url)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO mal_anime (mal_id, title, english_title, japanese_title, type, episodes, status, score, rating, synopsis, image_url)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE 
                         title = VALUES(title),
                         english_title = VALUES(english_title),
+                        japanese_title = VALUES(japanese_title),
                         type = VALUES(type),
                         episodes = VALUES(episodes),
                         status = VALUES(status),
@@ -1053,10 +1633,12 @@ async function fetchAndSaveAiringMALAnime(isHourlyUpdate = false) {
                         image_url = VALUES(image_url);
                 `;
                 const malId = node.id;
+                const japaneseTitle = node.alternative_titles?.ja || null;
                 await db.query(insertSql, [
                     malId,
                     node.title,
                     node.alternative_titles?.en || null,
+                    japaneseTitle,
                     node.media_type || null,
                     node.num_episodes || null,
                     node.status || null,
@@ -1102,6 +1684,7 @@ async function fetchEpisodesFromAniList(malId) {
                 episodes
                 nextAiringEpisode {
                     episode
+                    airingAt
                     timeUntilAiring
                 }
             }
@@ -1128,6 +1711,8 @@ async function fetchEpisodesFromAniList(malId) {
             anilistId: media.id,
             status: media.status,
             episodes: totalEpisodes || 0,
+            nextAiringEpisode: media.nextAiringEpisode ? media.nextAiringEpisode.episode : null,
+            nextAiringAt: media.nextAiringEpisode ? media.nextAiringEpisode.airingAt : null,
             releasedEpisodes: media.status === 'RELEASING'
                 ? (media.nextAiringEpisode ? Math.max(0, media.nextAiringEpisode.episode - 1) : null)
                 : (media.status === 'FINISHED' ? (media.episodes || 0) : null)
@@ -1225,6 +1810,160 @@ async function checkWatchlistEpisodeReleases() {
     }
 }
 
+async function getAiringSchedule(type) {
+    const cached = airingScheduleCache.get(type);
+    if (cached && Date.now() - cached.cachedAt < AIRING_SCHEDULE_CACHE_TTL_MS) {
+        return cached.animeList;
+    }
+    const response = await fetch(`https://raw.githubusercontent.com/RockinChaos/AniSchedule/refs/heads/master/raw/${encodeURIComponent(type)}-schedule.json`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch ${type} schedule: ${response.status}`);
+    }
+    const animeList = await response.json();
+    if (!Array.isArray(animeList)) {
+        throw new Error(`Invalid ${type} schedule response.`);
+    }
+    airingScheduleCache.set(type, { animeList, cachedAt: Date.now() });
+    return animeList;
+}
+
+async function refreshAiringSchedule(type) {
+    if (!['sub', 'dub'].includes(type)) throw new Error('Unsupported schedule type.');
+    const animeList = await getAiringSchedule(type);
+    const values = [];
+    const cutoff = Math.floor(Date.now() / 1000) - (14 * 24 * 60 * 60);
+    for (const anime of animeList) {
+        const anilistId = Number(anime.id);
+        if (!Number.isSafeInteger(anilistId) || anilistId <= 0) continue;
+        const title = anime.title?.english || anime.title?.romaji;
+        if (!title) continue;
+        const japaneseTitle = anime.title?.native || anime.title?.romaji || title;
+        const malId = Number(anime.idMal);
+        const normalizedMalId = Number.isSafeInteger(malId) && malId > 0 ? malId : null;
+        const imageUrl = anime.coverImage?.large || anime.coverImage?.extraLarge || null;
+        for (const node of anime.airingSchedule?.nodes || []) {
+            const episode = Number(node.episode);
+            const airingAt = Number(node.airingAt);
+            if (!Number.isSafeInteger(episode) || episode <= 0
+                || !Number.isSafeInteger(airingAt) || airingAt < cutoff) continue;
+            values.push([type, anilistId, normalizedMalId, episode, title, japaneseTitle, imageUrl, airingAt]);
+        }
+    }
+    const chunkSize = 250;
+    for (let offset = 0; offset < values.length; offset += chunkSize) {
+        const chunk = values.slice(offset, offset + chunkSize);
+        const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+        await db.execute(`
+            INSERT INTO airing_schedule_entries
+                (schedule_type, anilist_id, mal_id, episode, title, japanese_title, image_url, airing_at)
+            VALUES ${placeholders}
+            ON DUPLICATE KEY UPDATE
+                mal_id = VALUES(mal_id),
+                title = VALUES(title),
+                japanese_title = VALUES(japanese_title),
+                image_url = VALUES(image_url),
+                airing_at = VALUES(airing_at)
+        `, chunk.flat());
+    }
+    await db.execute(`
+        DELETE FROM airing_schedule_entries
+        WHERE airing_at < ?
+    `, [cutoff]);
+    return values.length;
+}
+
+async function refreshAllAiringSchedules() {
+    const results = await Promise.allSettled(['sub', 'dub'].map(refreshAiringSchedule));
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.error(`Could not refresh ${['sub', 'dub'][index]} airing schedule:`, result.reason.message);
+        } else {
+            console.log(`Saved ${result.value} ${['sub', 'dub'][index]} schedule entries.`);
+        }
+    });
+}
+
+let userXpReadyPromise;
+async function ensureUserXpReady() {
+    if (!userXpReadyPromise) {
+        userXpReadyPromise = (async () => {
+            await db.execute(`
+                INSERT IGNORE INTO user_xp_events (user_id, event_type, source_key, xp_amount, created_at)
+                SELECT user_id, 'watch', CONCAT(anime_id, ':', episode_number), 10, watched_at
+                FROM user_watched_episodes
+            `);
+            await db.execute(`
+                INSERT IGNORE INTO user_xp_events (user_id, event_type, source_key, xp_amount, created_at)
+                SELECT user_id, 'comment', CAST(comment_id AS CHAR), 5, created_at
+                FROM episode_comments
+            `);
+            await db.execute(`
+                INSERT INTO user_xp_totals (user_id, xp)
+                SELECT user_id, SUM(xp_amount)
+                FROM user_xp_events
+                GROUP BY user_id
+                ON DUPLICATE KEY UPDATE xp = VALUES(xp)
+            `);
+        })().catch(error => {
+            userXpReadyPromise = null;
+            throw error;
+        });
+    }
+    return userXpReadyPromise;
+}
+
+async function awardActivityXp(userId, eventType, sourceKey, points, dailyCap) {
+    await ensureUserXpReady();
+    const connection = await db.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.execute(
+            'INSERT IGNORE INTO user_xp_totals (user_id, xp) VALUES (?, 0)',
+            [String(userId)]
+        );
+        await connection.execute(
+            'SELECT xp FROM user_xp_totals WHERE user_id = ? FOR UPDATE',
+            [String(userId)]
+        );
+        const [dailyEvents] = await connection.execute(`
+            SELECT COUNT(*) AS event_count
+            FROM user_xp_events
+            WHERE user_id = ? AND event_type = ?
+              AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 DAY)
+        `, [String(userId), eventType]);
+        if (dailyEvents[0].event_count >= dailyCap) {
+            await connection.commit();
+            return false;
+        }
+        const [insertResult] = await connection.execute(`
+            INSERT IGNORE INTO user_xp_events (user_id, event_type, source_key, xp_amount)
+            VALUES (?, ?, ?, ?)
+        `, [String(userId), eventType, String(sourceKey), points]);
+        if (insertResult.affectedRows > 0) {
+            await connection.execute(
+                'UPDATE user_xp_totals SET xp = xp + ? WHERE user_id = ?',
+                [points, String(userId)]
+            );
+        }
+        await connection.commit();
+        return insertResult.affectedRows > 0;
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+}
+
+async function awardActivityXpSafely(userId, eventType, sourceKey, points, dailyCap) {
+    try {
+        return await awardActivityXp(userId, eventType, sourceKey, points, dailyCap);
+    } catch (error) {
+        console.error(`Could not award ${eventType} XP to user ${userId}:`, error.message);
+        return false;
+    }
+}
+
 // Scheduled Cron Jobs
 try {
     // Run Functions Every Day at Midnight
@@ -1239,6 +1978,11 @@ try {
         await fetchAndSaveAiringMALAnime(true);
         await checkWatchlistEpisodeReleases();
     }, {
+        scheduled: true,
+        timezone: "America/Chicago"
+    });
+    // Run Functions Every 3 Hours
+    cron.schedule('20 */3 * * *', refreshAllAiringSchedules, {
         scheduled: true,
         timezone: "America/Chicago"
     });

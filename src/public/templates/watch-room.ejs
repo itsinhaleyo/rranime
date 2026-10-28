@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= anime.english_title || room.anime_title %> Episode <%= room.current_episode %> · Watch Room</title>
+    <link rel="stylesheet" href="/css/home.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="/css/watch-room.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/script/watch-room.js" defer></script>
+</head>
+<body>
+<%- include('header') %>
+<main class="watch-room-page" id="watch-room"
+      data-room-id="<%= room.room_id %>"
+      data-anime-id="<%= room.anime_id %>"
+      data-title="<%= anime.english_title || room.anime_title %>"
+      data-current-episode="<%= room.current_episode %>"
+      data-total-episodes="<%= room.total_episodes %>"
+      data-display-total-episodes="<%= Number(anime.episodes) > 0 ? anime.episodes : room.total_episodes %>"
+      data-series-finished="<%= room.series_finished ? 'true' : 'false' %>"
+      data-audio="<%= room.audio %>"
+      data-position="<%= room.position_seconds %>"
+      data-paused="<%= room.is_paused ? 'true' : 'false' %>"
+      data-is-host="<%= isHost ? 'true' : 'false' %>"
+      data-current-user-id="<%= currentUserId %>"
+      data-current-user-name="<%= currentUserName %>"
+      data-host-user-id="<%= room.host_user_id %>">
+    <section class="watch-room-heading">
+        <div>
+            <a href="/watch2gether" class="watch-room-back"><i class="fas fa-arrow-left" aria-hidden="true"></i> All rooms</a>
+            <span class="watch-room-eyebrow">LIVE WATCH ROOM</span>
+            <h1 data-room-title><%= anime.english_title || room.anime_title %></h1>
+            <p><strong data-room-episode>Room Code: <span class="watch-room-code"><%= room.room_id %></span></p>
+        </div>
+        <div class="watch-room-heading-actions">
+            <button class="watch-room-share" id="watch-room-share" type="button"><i class="fas fa-link" aria-hidden="true"></i> Copy invite link</button>
+            <% if (isHost) { %>
+                <button class="watch-room-end" id="watch-room-end" type="button"><i class="fas fa-door-closed" aria-hidden="true"></i> End room</button>
+            <% } %>
+        </div>
+    </section>
+
+    <div class="watch-room-layout">
+        <section class="watch-room-player-column" aria-label="Shared episode player">
+            <div class="watch-room-player-frame" id="watch-room-player-wrap">
+                <iframe id="watch-room-player"
+                        src="https://zokoanime.video/stream/mal/<%= encodeURIComponent(String(room.anime_id)) %>/<%= room.current_episode %>/<%= room.audio %>?color=ff3c20&amp;autoplay=true&amp;autonext=true"
+                        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                        allowfullscreen title="<%= anime.english_title || room.anime_title %> episode <%= room.current_episode %>"></iframe>
+                <button class="watch-room-start-overlay" id="watch-room-start" type="button" hidden>
+                    <i class="fas fa-play" aria-hidden="true"></i> Join playback
+                </button>
+            </div>
+            <div class="watch-room-player-info">
+                <div>
+                    <strong data-room-player-title><%= anime.english_title || room.anime_title %></strong>
+                    <span>Episode <span data-room-player-episode><%= room.current_episode %></span> · Shared Zoko player · <span id="watch-room-player-audio"><%= room.audio.toUpperCase() %></span></span>
+                </div>
+                <span class="watch-room-sync-status" id="watch-room-status" role="status" aria-live="polite">Connecting to room…</span>
+            </div>
+            <% if (isHost) { %>
+                <div class="watch-room-episode-controls" role="group" aria-label="Change room episode">
+                    <button type="button" id="watch-room-previous" class="watch-room-episode-button" <%= Number(room.current_episode) <= 1 ? 'disabled' : '' %>>
+                        <i class="fas fa-backward-step" aria-hidden="true"></i> Previous episode
+                    </button>
+                    <button type="button" id="watch-room-next" class="watch-room-episode-button" <%= Number(room.total_episodes) > 0 && Number(room.current_episode) >= Number(room.total_episodes) ? 'disabled' : '' %>>
+                        Next episode <i class="fas fa-forward-step" aria-hidden="true"></i>
+                    </button>
+                </div>
+            <% } %>
+            <div class="watch-room-audio-row">
+                <span class="watch-room-audio-label"><i class="fas fa-language" aria-hidden="true"></i> Room audio</span>
+                <% if (isHost) { %>
+                    <div class="watch-room-audio-options" role="group" aria-label="Choose shared room audio">
+                        <button type="button" class="watch-room-audio-option <%= room.audio === 'sub' ? 'active' : '' %>" data-room-audio-option="sub" aria-pressed="<%= room.audio === 'sub' ? 'true' : 'false' %>">SUB</button>
+                        <button type="button" class="watch-room-audio-option <%= room.audio === 'dub' ? 'active' : '' %>" data-room-audio-option="dub" aria-pressed="<%= room.audio === 'dub' ? 'true' : 'false' %>">DUB</button>
+                    </div>
+                    <span class="watch-room-audio-hint">Changing this switches everyone’s player.</span>
+                <% } else { %>
+                    <strong class="watch-room-audio-guest"><%= room.audio.toUpperCase() %> <span>· host controlled</span></strong>
+                <% } %>
+            </div>
+            <div class="watch-room-host-note">
+                <% if (isHost) { %>
+                    You control playback for everyone. Autoplay and episode advance are enabled in this room.
+                <% } else { %>
+                    Playback follows the room host. Tap Join playback if your browser blocks autoplay.
+                <% } %>
+            </div>
+            <% const roomDisplayTotal = Number(anime.episodes) > 0 ? Number(anime.episodes) : Number(room.total_episodes); %>
+            <section class="room-series-information" aria-labelledby="room-series-title">
+                <% if (anime.image_url) { %>
+                    <div class="room-series-poster-wrap">
+                        <img class="room-series-poster" src="<%= anime.image_url %>" alt="<%= anime.english_title || room.anime_title %> poster" loading="lazy">
+                        <% if (anime.rating) { %><span class="room-series-rating"><%= anime.rating.toUpperCase() %></span><% } %>
+                    </div>
+                <% } %>
+                <div class="room-series-content">
+                    <div class="room-series-eyebrow"><i class="fas fa-film" aria-hidden="true"></i> Series information</div>
+                    <div class="room-series-title-row">
+                        <h2 id="room-series-title">
+                            <a href="/anime/<%= room.anime_id %>" data-anime-title data-title-en="<%= anime.english_title || room.anime_title %>" data-title-ja="<%= anime.japanese_title || anime.title || room.anime_title %>"><%= anime.english_title || room.anime_title %></a>
+                        </h2>
+                        <span class="room-series-current-episode">Episode <span data-room-episode><%= room.current_episode %></span></span>
+                    </div>
+                    <% if (anime.japanese_title && anime.japanese_title !== (anime.english_title || anime.title)) { %>
+                        <p class="room-series-alt-title"><%= anime.japanese_title %></p>
+                    <% } %>
+                    <div class="room-series-tags">
+                        <% if (anime.type) { %><span><i class="fas fa-tv" aria-hidden="true"></i> <%= anime.type %></span><% } %>
+                        <% if (roomDisplayTotal > 0) { %><span><i class="fas fa-list-ol" aria-hidden="true"></i> <%= roomDisplayTotal %> episodes</span><% } %>
+                        <% if (anime.status) { %><span><i class="fas fa-circle-play" aria-hidden="true"></i> <%= anime.status.replace(/_/g, ' ') %></span><% } %>
+                        <% if (Number(anime.score) > 0) { %><span class="room-series-score"><i class="fas fa-star" aria-hidden="true"></i> <%= Number(anime.score).toFixed(2) %></span><% } %>
+                    </div>
+                    <% if (anime.genres) { %><p class="room-series-genres"><strong>Genres</strong> <%= anime.genres %></p><% } %>
+                    <details class="room-series-synopsis">
+                        <summary>Series synopsis</summary>
+                        <p><%= anime.synopsis || 'A series synopsis is not available yet.' %></p>
+                    </details>
+                    <div class="room-series-divider"></div>
+                    <div class="room-series-episode-heading"><i class="fas fa-circle-info" aria-hidden="true"></i> Episode details</div>
+                    <div class="room-series-episode-grid">
+                        <div><span>Now watching</span><strong>Episode <span data-room-episode><%= room.current_episode %></span><% if (roomDisplayTotal > 0) { %> <small>of <%= roomDisplayTotal %></small><% } %></strong></div>
+                        <div><span>Audio</span><strong id="room-series-audio-value"><%= room.audio.toUpperCase() %></strong></div>
+                        <div><span>Streaming source</span><strong>Zoko · synchronized</strong></div>
+                        <div><span>Room playback</span><strong>Autoplay · Auto-next</strong></div>
+                    </div>
+                    <% if (roomDisplayTotal > 0) { %>
+                        <div class="room-series-progress" aria-label="Episode <%= room.current_episode %> of <%= roomDisplayTotal %>">
+                            <div><span>Series progress</span><span data-room-progress-label><%= Math.min(room.current_episode, roomDisplayTotal) %> / <%= roomDisplayTotal %></span></div>
+                            <span class="room-series-progress-track"><span id="room-series-progress-fill" style="width: <%= Math.min(100, Math.round((room.current_episode / roomDisplayTotal) * 100)) %>%"></span></span>
+                        </div>
+                    <% } %>
+                </div>
+            </section>
+        </section>
+
+        <aside class="watch-room-chat-panel" aria-label="Room chat and viewers">
+            <div class="watch-room-chat-header">
+                <div><h2>Room chat</h2><span><i class="fas fa-circle" aria-hidden="true"></i> <span id="watch-room-viewer-count">1</span> here</span></div>
+                <a href="/anime/<%= room.anime_id %>/<%= room.current_episode %>" class="watch-room-episode-link" id="watch-room-episode-page-link">Episode page</a>
+            </div>
+            <div class="watch-room-viewers" id="watch-room-viewers" aria-label="People in the room"></div>
+            <div class="watch-room-messages" id="watch-room-messages" aria-live="polite">
+                <% messages.forEach(message => { %>
+                    <article class="watch-room-message" data-message-id="<%= message.message_id %>">
+                        <div class="watch-room-message-meta"><strong><%= message.display_name %></strong><time><%= new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) %></time></div>
+                        <p><%= message.body %></p>
+                    </article>
+                <% }); %>
+            </div>
+            <form class="watch-room-chat-form" id="watch-room-chat-form">
+                <label class="sr-only" for="watch-room-chat-input">Message the room</label>
+                <input id="watch-room-chat-input" name="body" maxlength="500" placeholder="Say something…" autocomplete="off" required>
+                <button type="submit" aria-label="Send message"><i class="fas fa-paper-plane" aria-hidden="true"></i></button>
+            </form>
+        </aside>
+    </div>
+</main>
+<%- include('footer') %>
+</body>
+</html>

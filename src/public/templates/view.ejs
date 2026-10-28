@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= anime.english_title || anime.title %> - RRAnime</title>
+    <title data-anime-title data-title-en="<%= anime.english_title || anime.title %> - RRAnime" data-title-ja="<%= anime.japanese_title || anime.title %> - RRAnime"><%= anime.english_title || anime.title %> - RRAnime</title>
     <link rel="stylesheet" href="/css/view.css">
     <link rel="stylesheet" href="/css/header.css">
     <link rel="stylesheet" href="/css/footer.css">
@@ -22,7 +22,7 @@
                         <div class="breadcrumbs-trail">
                             <a href="/home">Home</a> <i class="fas fa-chevron-right"></i> <span><%= anime.type %></span>
                         </div>
-                        <h1 class="view-anime-title"><%= anime.english_title || anime.title %></h1>
+                        <h1 class="view-anime-title" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h1>
                         <p class="view-native-title"><%= anime.title %></p>
                         <div class="anime-meta" style="margin-top: 1rem;">
                             <span class="quality-tag">HD</span>

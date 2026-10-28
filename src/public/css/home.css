@@ -528,6 +528,31 @@ img {
     margin-bottom: 0;
 }
 
+.estimated-schedule { margin-top: 2.5rem; padding: clamp(1rem, 2.5vw, 1.5rem); border: 1px solid var(--border-color); border-radius: .9rem; background: linear-gradient(145deg, rgba(255, 60, 32, .045), var(--bg-surface) 48%); }
+.estimated-schedule-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.2rem; }
+.estimated-schedule-heading .section-title { margin: 0; }
+.estimated-schedule-heading p { margin-top: .35rem; color: var(--text-muted); font-size: .78rem; }
+.estimated-schedule-full-link { flex: 0 0 auto; color: #ff8a79; font-size: .78rem; font-weight: 700; }
+.estimated-schedule-full-link:hover { color: #fff; }
+.estimated-schedule-full-link i { margin-left: .25rem; }
+.estimated-schedule-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .55rem; margin-bottom: .75rem; }
+.estimated-schedule-day { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: .3rem; padding: .7rem .35rem; border: 1px solid transparent; border-radius: .65rem; background: #202430; color: var(--text-main); font: inherit; cursor: pointer; transition: background .18s, border-color .18s, transform .18s; }
+.estimated-schedule-day:hover { border-color: rgba(255, 60, 32, .35); transform: translateY(-1px); }
+.estimated-schedule-day.active { border-color: transparent; background: #ffb9dc; color: #201421; }
+.estimated-schedule-day-name { font-size: .85rem; font-weight: 800; }
+.estimated-schedule-day-date { color: var(--text-muted); font-size: .72rem; }
+.estimated-schedule-day.active .estimated-schedule-day-date { color: #493044; }
+.estimated-schedule-panel[hidden] { display: none; }
+.estimated-schedule-release-list { border-top: 1px solid var(--border-color); }
+.estimated-schedule-release { display: grid; grid-template-columns: 4.25rem minmax(0, 1fr) 7.25rem; align-items: center; gap: .7rem; min-height: 3.5rem; padding: .75rem .1rem; border-bottom: 1px solid var(--border-color); }
+.estimated-release-time { color: var(--text-muted); font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.estimated-release-title { min-width: 0; font-size: .88rem; font-weight: 650; }
+.estimated-release-title a, .estimated-release-title span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.estimated-release-title a:hover { color: #ff9b8e; }
+.estimated-release-episode { color: var(--text-muted); font-size: .75rem; text-align: right; white-space: nowrap; }
+.estimated-release-episode i { margin-right: .25rem; font-size: .6rem; }
+.estimated-schedule-empty { padding: 1.5rem .5rem; color: var(--text-muted); font-size: .85rem; text-align: center; }
+
 .tab-filters {
     display: flex;
     background-color: var(--bg-surface);
@@ -815,6 +840,9 @@ color: #4e5564;
 @media (max-width: 768px) {
 .nav-container { padding: 0 1rem; }
 .search-bar, .social-icons { display: none; }
+.estimated-schedule-days { display: flex; overflow-x: auto; padding: .1rem .05rem .45rem; scrollbar-width: thin; }
+.estimated-schedule-day { flex: 0 0 5.25rem; }
+.estimated-schedule-release { grid-template-columns: 3.5rem minmax(0, 1fr) 6.25rem; gap: .5rem; }
 .slide { height: 340px; }
 .slide-content { padding: 1.5rem; }
 .anime-title { font-size: 1.8rem; }
@@ -829,6 +857,17 @@ gap: 1rem;
 grid-template-columns: 1fr;
 }
 .tab-filters { display: none; }
+.estimated-schedule { margin-top: 1.75rem; padding: .9rem; }
+.estimated-schedule-heading { align-items: flex-start; }
+.estimated-schedule-heading p { max-width: 220px; font-size: .7rem; }
+.estimated-schedule-full-link { font-size: .7rem; white-space: nowrap; }
+.estimated-schedule-day { flex-basis: 4.6rem; padding: .6rem .3rem; }
+.estimated-schedule-day-name { font-size: .78rem; }
+.estimated-schedule-day-date { font-size: .66rem; }
+.estimated-schedule-release { grid-template-columns: 3.2rem minmax(0, 1fr); gap: .4rem .55rem; }
+.estimated-release-episode { grid-column: 2; margin-top: -.45rem; text-align: left; font-size: .68rem; }
+.estimated-release-time { font-size: .75rem; }
+.estimated-release-title { font-size: .8rem; }
 }
 
 @media (max-width: 768px) {

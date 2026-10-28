@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Watching <%= anime.english_title || anime.title %> Episode <%= currentEpisode %> - RRAnime</title>
+    <title data-anime-title data-title-en="Watching <%= anime.english_title || anime.title %> Episode <%= currentEpisode %> - RRAnime" data-title-ja="Watching <%= anime.japanese_title || anime.title %> Episode <%= currentEpisode %> - RRAnime">Watching <%= anime.english_title || anime.title %> Episode <%= currentEpisode %> - RRAnime</title>
     <link rel="stylesheet" href="/css/watch.css">
     <link rel="stylesheet" href="/css/header.css">
     <link rel="stylesheet" href="/css/footer.css">
@@ -14,11 +14,11 @@
 <%- include('header') %>
     <div class="main-layout watch-theater-layout">
         <main class="content-area">
-            <section class="video-theater-wrapper" data-mal-id="<%= anime.mal_id %>" data-anilist-id="<%= anilistId || '' %>" data-current-episode="<%= currentEpisode %>">
+            <section class="video-theater-wrapper" data-mal-id="<%= anime.mal_id %>" data-anilist-id="<%= anilistId || '' %>" data-current-episode="<%= currentEpisode %>" data-total-episodes="<%= totalEpisodes %>" data-current-provider="<%= selectedProvider %>" data-current-audio="<%= selectedAudio %>">
                 <div class="player-canvas">
                     <iframe 
                         id="rranime-embed-player"
-                        src="https://zokoanime.video/stream/mal/<%= anime.mal_id %>/<%= currentEpisode %>/sub?color=ff3c20" 
+                        src="<%= initialStreamUrl %>" 
                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" 
                         allowfullscreen 
                         scrolling="no" 
@@ -31,14 +31,38 @@
                     </div>
                     <div class="controls-right">
                         <% if (currentEpisode > 1) { %>
-                            <a href="/anime/<%= anime.mal_id %>/<%= currentEpisode - 1 %>" class="btn-nav-ep"><i class="fas fa-step-backward"></i> Prev</a>
+                            <a href="/anime/<%= anime.mal_id %>/<%= currentEpisode - 1 %>?provider=<%= selectedProvider %>&amp;audio=<%= selectedAudio %>" class="btn-nav-ep"><i class="fas fa-step-backward"></i> Prev</a>
                         <% } %>
                         <% if (currentEpisode < totalEpisodes) { %>
-                            <a href="/anime/<%= anime.mal_id %>/<%= currentEpisode + 1 %>" class="btn-nav-ep">Next <i class="fas fa-step-forward"></i></a>
+                            <a href="/anime/<%= anime.mal_id %>/<%= currentEpisode + 1 %>?provider=<%= selectedProvider %>&amp;audio=<%= selectedAudio %>" class="btn-nav-ep">Next <i class="fas fa-step-forward"></i></a>
                         <% } %>
+                        <button class="btn-share-episode" id="share-episode-link" type="button"
+                                data-share-title="<%= anime.english_title || anime.title %> — Episode <%= currentEpisode %>">
+                            <i class="fas fa-link" aria-hidden="true"></i> Share
+                        </button>
+                        <form class="create-watch-room-form" action="/watch2gether/create" method="POST">
+                            <input type="hidden" name="anime_id" value="<%= anime.mal_id %>">
+                            <input type="hidden" name="episode" value="<%= currentEpisode %>">
+                            <input type="hidden" name="audio" value="<%= selectedAudio %>">
+                            <button class="btn-create-watch-room" type="submit" title="Create a synchronized Zoko watch room">
+                                <i class="fas fa-users" aria-hidden="true"></i> Create Watch Room
+                            </button>
+                        </form>
                         <button class="btn-theater-toggle" title="Light Switch"><i class="fas fa-lightbulb"></i></button>
                     </div>
                 </div>
+                <p class="watch-together-status" id="watch-together-status" role="status" aria-live="polite" hidden></p>
+                <% if (nextAiring) { %>
+                    <div class="next-airing-panel" data-airing-at="<%= nextAiring.airingAt %>">
+                        <div class="next-airing-icon"><i class="fas fa-clock" aria-hidden="true"></i></div>
+                        <div class="next-airing-copy">
+                            <span class="next-airing-label">NEXT EPISODE EXPECTED</span>
+                            <strong>Episode <%= nextAiring.episode %></strong>
+                            <span class="next-airing-time">Scheduled <time id="next-airing-local-time"><%= new Date(nextAiring.airingAt * 1000).toLocaleString() %></time></span>
+                        </div>
+                        <div class="next-airing-countdown" id="next-airing-countdown" role="timer" aria-live="off">Loading countdown…</div>
+                    </div>
+                <% } %>
             </section>
             <section class="server-switching-block">
                 <div class="server-rail-heading">
@@ -48,15 +72,15 @@
                 <div class="server-group-row">
                     <div class="server-type-badge">SUB</div>
                     <div class="server-buttons-rack">
-                        <button type="button" class="server-bubble audio-toggle active" data-provider="zoko" data-audio="sub" aria-pressed="true">
+                        <button type="button" class="server-bubble audio-toggle <%= selectedProvider === 'zoko' && selectedAudio === 'sub' ? 'active' : '' %>" data-provider="zoko" data-audio="sub" aria-pressed="<%= selectedProvider === 'zoko' && selectedAudio === 'sub' ? 'true' : 'false' %>">
                             <i class="fas fa-closed-captioning"></i> Server 1 (SUB)
                         </button>
                         <% if (anilistId) { %>
-                            <button type="button" class="server-bubble audio-toggle" data-provider="anixo" data-audio="sub" aria-pressed="false">
+                            <button type="button" class="server-bubble audio-toggle <%= selectedProvider === 'anixo' && selectedAudio === 'sub' ? 'active' : '' %>" data-provider="anixo" data-audio="sub" aria-pressed="<%= selectedProvider === 'anixo' && selectedAudio === 'sub' ? 'true' : 'false' %>">
                                 <i class="fas fa-closed-captioning"></i> Server 2 (SUB)
                             </button>
                         <% } %>
-                        <button type="button" class="server-bubble audio-toggle" data-provider="megavid" data-audio="sub" aria-pressed="false">
+                        <button type="button" class="server-bubble audio-toggle <%= selectedProvider === 'megavid' && selectedAudio === 'sub' ? 'active' : '' %>" data-provider="megavid" data-audio="sub" aria-pressed="<%= selectedProvider === 'megavid' && selectedAudio === 'sub' ? 'true' : 'false' %>">
                             <i class="fas fa-closed-captioning"></i> Server 3 (SUB)
                         </button>
                     </div>
@@ -64,18 +88,73 @@
                 <div class="server-group-row" style="margin-top: 1rem;">
                     <div class="server-type-badge dub-badge">DUB</div>
                     <div class="server-buttons-rack">
-                        <button type="button" class="server-bubble audio-toggle" data-provider="zoko" data-audio="dub" aria-pressed="false">
+                        <button type="button" class="server-bubble audio-toggle <%= selectedProvider === 'zoko' && selectedAudio === 'dub' ? 'active' : '' %>" data-provider="zoko" data-audio="dub" aria-pressed="<%= selectedProvider === 'zoko' && selectedAudio === 'dub' ? 'true' : 'false' %>">
                             <i class="fas fa-microphone"></i> Server 1 (DUB)
                         </button>
                         <% if (anilistId) { %>
-                            <button type="button" class="server-bubble audio-toggle" data-provider="anixo" data-audio="dub" aria-pressed="false">
+                            <button type="button" class="server-bubble audio-toggle <%= selectedProvider === 'anixo' && selectedAudio === 'dub' ? 'active' : '' %>" data-provider="anixo" data-audio="dub" aria-pressed="<%= selectedProvider === 'anixo' && selectedAudio === 'dub' ? 'true' : 'false' %>">
                                 <i class="fas fa-microphone"></i> Server 2 (DUB)
                             </button>
                         <% } %>
-                        <button type="button" class="server-bubble audio-toggle" data-provider="megavid" data-audio="dub" aria-pressed="false">
+                        <button type="button" class="server-bubble audio-toggle <%= selectedProvider === 'megavid' && selectedAudio === 'dub' ? 'active' : '' %>" data-provider="megavid" data-audio="dub" aria-pressed="<%= selectedProvider === 'megavid' && selectedAudio === 'dub' ? 'true' : 'false' %>">
                             <i class="fas fa-microphone"></i> Server 3 (DUB)
                         </button>
                     </div>
+                </div>
+            </section>
+            <section class="episode-information-panel" aria-labelledby="episode-information-title">
+                <div class="episode-information-poster-wrap">
+                    <img class="episode-information-poster" src="<%= anime.image_url %>" alt="<%= anime.english_title || anime.title %> poster" loading="lazy">
+                    <% if (anime.rating) { %><span class="episode-information-rating"><%= anime.rating.toUpperCase() %></span><% } %>
+                </div>
+                <div class="episode-information-content">
+                    <div class="episode-information-series-label"><i class="fas fa-film" aria-hidden="true"></i> Series information</div>
+                    <div class="episode-information-title-row">
+                        <h2 id="episode-information-title">
+                            <a href="/anime/<%= anime.mal_id %>" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></a>
+                        </h2>
+                        <span class="episode-information-current">Episode <%= currentEpisode %></span>
+                    </div>
+                    <% if (anime.japanese_title && anime.japanese_title !== (anime.english_title || anime.title)) { %>
+                        <p class="episode-information-alt-title"><%= anime.japanese_title %></p>
+                    <% } %>
+                    <div class="episode-information-tags">
+                        <% if (anime.type) { %><span><i class="fas fa-tv" aria-hidden="true"></i> <%= anime.type %></span><% } %>
+                        <% if (Number(anime.episodes) > 0) { %><span><i class="fas fa-list-ol" aria-hidden="true"></i> <%= anime.episodes %> episodes</span><% } %>
+                        <% if (anime.status) { %><span><i class="fas fa-circle-play" aria-hidden="true"></i> <%= anime.status.replace(/_/g, ' ') %></span><% } %>
+                        <% if (Number(anime.score) > 0) { %><span class="episode-information-score"><i class="fas fa-star" aria-hidden="true"></i> <%= Number(anime.score).toFixed(2) %></span><% } %>
+                    </div>
+                    <% if (anime.genres) { %><p class="episode-information-genres"><strong>Genres</strong> <%= anime.genres %></p><% } %>
+                    <details class="episode-information-synopsis">
+                        <summary>Series synopsis</summary>
+                        <p><%= anime.synopsis || 'A series synopsis is not available yet.' %></p>
+                    </details>
+                    <div class="episode-information-divider"></div>
+                    <div class="episode-specific-heading"><i class="fas fa-circle-info" aria-hidden="true"></i> Episode details</div>
+                    <div class="episode-specific-grid">
+                        <div class="episode-specific-item">
+                            <span>Now watching</span>
+                            <strong>Episode <%= currentEpisode %><% if (Number(anime.episodes) > 0) { %> <small>of <%= anime.episodes %></small><% } %></strong>
+                        </div>
+                        <div class="episode-specific-item">
+                            <span>Audio</span>
+                            <strong><%= selectedAudio.toUpperCase() %></strong>
+                        </div>
+                        <div class="episode-specific-item">
+                            <span>Streaming source</span>
+                            <strong><%= selectedProvider === 'zoko' ? 'Server 1 · Zoko' : selectedProvider === 'anixo' ? 'Server 2 · Anixo' : 'Server 3 · Megavid' %></strong>
+                        </div>
+                        <div class="episode-specific-item">
+                            <span>Episode guide</span>
+                            <a href="/anime/<%= anime.mal_id %>" class="episode-specific-link">View all episodes <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                        </div>
+                    </div>
+                    <% if (Number(anime.episodes) > 0) { %>
+                        <div class="episode-watch-progress" aria-label="Episode <%= currentEpisode %> of <%= anime.episodes %>">
+                            <div><span>Series progress</span><span><%= Math.min(currentEpisode, anime.episodes) %> / <%= anime.episodes %></span></div>
+                            <span class="episode-watch-progress-track"><span style="width: <%= Math.min(100, Math.round((currentEpisode / anime.episodes) * 100)) %>%"></span></span>
+                        </div>
+                    <% } %>
                 </div>
             </section>
             <section class="comments-block-wrapper" id="comments">
@@ -107,6 +186,7 @@
                     <% if (comments.length) { %>
                         <% comments.forEach(comment => { %>
                             <% const commentAccent = /^#[0-9a-fA-F]{6}$/.test(comment.accent_color || '') ? comment.accent_color : '#ff3c20'; %>
+                            <% const commentRank = comment.activityRank || { name: 'Newbie', isAdmin: String(comment.user_id) === '1' }; %>
                             <article class="episode-comment" id="comment-<%= comment.comment_id %>" style="--comment-accent: <%= commentAccent %>">
                                 <div class="comment-avatar">
                                     <% if (comment.avatar_url) { %>
@@ -118,7 +198,7 @@
                                 <div class="comment-content">
                                     <div class="comment-byline">
                                         <div>
-                                            <% if (String(comment.user_id) === '1') { %><span class="comment-admin-badge">ADMIN</span><% } %>
+                                            <span class="comment-rank-badge <%= commentRank.isAdmin ? 'admin' : '' %>"><%= commentRank.name %></span>
                                             <span class="comment-author" style="--comment-accent: <%= commentAccent %>"><%= comment.display_name || `Anime fan #${comment.user_id}` %></span>
                                             <time class="comment-time" datetime="<%= new Date(comment.created_at).toISOString() %>"><%= new Date(comment.created_at).toLocaleString() %></time>
                                         </div>
@@ -135,6 +215,7 @@
                                 <div class="comment-replies" aria-label="Replies to <%= comment.display_name || 'this comment' %>">
                                     <% comment.replies.forEach(reply => { %>
                                         <% const replyAccent = /^#[0-9a-fA-F]{6}$/.test(reply.accent_color || '') ? reply.accent_color : '#ff3c20'; %>
+                                            <% const replyRank = reply.activityRank || { name: 'Newbie', isAdmin: String(reply.user_id) === '1' }; %>
                                         <article class="episode-comment episode-reply" id="comment-<%= reply.comment_id %>" style="--comment-accent: <%= replyAccent %>">
                                             <div class="comment-avatar">
                                                 <% if (reply.avatar_url) { %><img src="<%= reply.avatar_url %>" alt=""><% } else { %><span><%= (reply.display_name || 'A').charAt(0).toUpperCase() %></span><% } %>
@@ -142,7 +223,7 @@
                                             <div class="comment-content">
                                                 <div class="comment-byline">
                                                     <div>
-                                                        <% if (String(reply.user_id) === '1') { %><span class="comment-admin-badge">ADMIN</span><% } %>
+                                                        <span class="comment-rank-badge <%= replyRank.isAdmin ? 'admin' : '' %>"><%= replyRank.name %></span>
                                                         <span class="comment-author" style="--comment-accent: <%= replyAccent %>"><%= reply.display_name || `Anime fan #${reply.user_id}` %></span>
                                                         <time class="comment-time" datetime="<%= new Date(reply.created_at).toISOString() %>"><%= new Date(reply.created_at).toLocaleString() %></time>
                                                     </div>
@@ -190,7 +271,7 @@
                 <div class="context-split">
                     <img src="<%= anime.image_url %>" alt="<%= anime.title %>" class="context-poster">
                     <div class="context-meta-text">
-                        <h4 class="title-truncate"><%= anime.english_title || anime.title %></h4>
+                        <h4 class="title-truncate" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h4>
                         <p class="type-mini" style="display:inline-block; margin-top: 0.5rem;"><%= anime.type %></p>
                         <a href="/anime/<%= anime.mal_id %>" class="back-profile-link"><i class="fas fa-arrow-left"></i> View Profile</a>
                     </div>

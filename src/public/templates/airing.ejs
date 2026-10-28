@@ -30,7 +30,7 @@
                             <% } %>
                         </div>
                         <div class="card-details">
-                            <h2 class="anime-title" title="<%= anime.title %>">
+                            <h2 class="anime-title" title="<%= anime.english_title || anime.title %>" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>">
                                 <%= anime.english_title || anime.title %>
                             </h2>
                             <div class="anime-meta">
