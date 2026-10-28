@@ -1,2 +1,12 @@
 .env
 /node_modules
+android/.gradle/
+android/.idea/
+android/local.properties
+android/build/
+android/app/build/
+android/*.iml
+*.jks
+*.keystore
+*.aab
+*.apk

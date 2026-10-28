@@ -1,4 +1,4 @@
-# RRAnime
+# RRAnime Website
 
 RRAnime is an anime discovery and watchlist website built with Node.js, Express, EJS, and MySQL. It uses MyAnimeList for catalog data and AniList for airing episode information.
 
@@ -128,6 +128,20 @@ src/
     templates/            EJS pages and shared partials
   index.js                Express routes, authentication, APIs, and cron jobs
 ```
+
+# RRAnime Android app
+
+This Android Studio project wraps the existing RRAnime website in a native Android WebView. It uses the live HTTPS site at `https://rranime.online/`; the website's Express server, MySQL database, domain, and TLS certificate must be running for the app to work. The app does not contain or replace the website backend.
+
+## Open and run
+
+1. In Android Studio, choose **Open** and select this `android` folder.
+2. Let Gradle sync, then select an emulator or connected Android device.
+3. Press **Run**.
+
+To change the website address, edit `HOME_URL` in `app/src/main/java/com/rranime/mobile/MainActivity.java`. If the host changes, update the same-host check in `shouldOverrideUrlLoading` as well. HTTPS is required; cleartext HTTP is disabled.
+
+The app keeps navigation on `rranime.online`, allows JavaScript and browser storage for the site's pages and sign-in session, and opens links to other hosts in the device browser.
 
 ## License
 
