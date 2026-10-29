@@ -1620,7 +1620,7 @@ rranime.get('/api/anime-suggestions', checkAuthenticated, async (req, res) => {
 rranime.get('/*any', (req, res) => { res.redirect('/home'); });
 
 mainweb.use(vhost(`rranime.online`, rranime));
-mainweb.listen(port, () => { console.log(`Website running on PORT:${port}/`); });
+mainweb.listen(port, () => { console.log(`RRAnime running on PORT:${port}/`); });
 
 async function fetchAndSaveAllMALAnime() {
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
