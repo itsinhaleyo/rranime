@@ -100,14 +100,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             notificationList.innerHTML = items.map(item => {
-                const animeId = encodeURIComponent(item.anime_id);
-                const episode = encodeURIComponent(item.episode_number);
                 const isCommentReply = item.notification_type === 'comment';
-                const commentId = encodeURIComponent(item.comment_id || '');
                 const title = escapeHtml(item.title || 'New episode available');
                 const message = escapeHtml(item.message || `Episode ${item.episode_number} is now available.`);
                 const createdAt = escapeHtml(formatNotificationDate(item.created_at));
-                const target = `/anime/${animeId}/${episode}${isCommentReply ? `#comment-${commentId}` : ''}`;
+                const target = isCommentReply
+                    ? `/notifications/comments/${encodeURIComponent(item.id)}/open`
+                    : `/notifications/${encodeURIComponent(item.id)}/open`;
                 return `<a class="notification-dropdown-item ${item.is_read ? '' : 'is-unread'}" href="${target}">
                     <span class="notification-dropdown-icon"><i class="fas ${isCommentReply ? 'fa-reply' : 'fa-play'}" aria-hidden="true"></i></span>
                     <span class="notification-dropdown-copy">

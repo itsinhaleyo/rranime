@@ -105,6 +105,8 @@ All application pages and APIs require authentication except /login. Unmatched p
 | POST /watchlist/add, POST /watchlist/remove/:animeId | Add or remove a title |
 | POST /watchlist/import-mal | Import a MyAnimeList list |
 | /notifications | View episode and comment-reply notifications |
+| /notifications/:id/open | Mark an episode notification as read and open its episode |
+| /notifications/comments/:id/open | Mark a reply notification as read and open the comment |
 | POST /notifications/:id/read, POST /notifications/:id/delete | Manage an episode notification |
 | POST /notifications/comments/:id/read, POST /notifications/comments/:id/delete | Manage a reply notification |
 | /api/notifications/preview | Recent notifications for the header |
@@ -138,7 +140,7 @@ The application runs its cron jobs in the America/Chicago timezone:
 
 Schedule data is cached in memory for five minutes. Saved entries are updated when new schedule data is available and entries older than 14 days are pruned. The /home estimated schedule and weekly timetable use this data; estimates and release times depend on the upstream feed and may be incomplete or change. Schedule times are formatted using the application server's local timezone.
 
-Episode notifications reflect AniList release information and do not confirm availability from a streaming provider. Streaming embeds are hosted by third parties and can be unavailable or behave differently across browsers.
+Episode notifications reflect AniList release information and do not confirm availability from a streaming provider. When an anime is first tracked with at least one released episode, current watchlist users receive an episode 1 notification and the current release count is saved as the baseline; future release checks notify for new episodes without sending a backlog of older episode notifications. Streaming embeds are hosted by third parties and can be unavailable or behave differently across browsers.
 
 ## Title language preference
 

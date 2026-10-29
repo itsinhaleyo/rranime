@@ -53,11 +53,9 @@ passport.use(new LocalStrategy({
         return done(null, user);
     } else if (password === process.env.USER_2) {
         const user = { id: 2, role: 'user' };
-        console.log("User 2 Logged In.");
         return done(null, user);
     } else if (password === process.env.USER_3) {
         const user = { id: 3, role: 'user' };
-        console.log("User 3 Logged In.");
         return done(null, user);
     } else {
         return done(null, false, { message: 'Invalid password' });
@@ -178,8 +176,24 @@ rranime.get('/profile', checkAuthenticated, async (req, res) => {
             'SELECT xp FROM user_xp_totals WHERE user_id = ?',
             [String(req.user.id)]
         );
+        const [membershipRows] = await db.execute(`
+            SELECT MIN(activity_at) AS member_since
+            FROM (
+                SELECT created_at AS activity_at FROM episode_comments WHERE user_id = ?
+                UNION ALL
+                SELECT watched_at AS activity_at FROM user_watched_episodes WHERE user_id = ?
+                UNION ALL
+                SELECT added_at AS activity_at FROM user_watchlist WHERE user_id = ?
+            ) AS user_activity
+        `, [String(req.user.id), String(req.user.id), String(req.user.id)]);
         const activityRank = getActivityRank(req.user.id, xpRows[0]?.xp || 0);
-        res.render('profile', { profile, activityRank, saved: req.query.saved === '1' });
+        res.render('profile', {
+            profile,
+            activityRank,
+            activityRanks,
+            memberSince: membershipRows[0]?.member_since || null,
+            saved: req.query.saved === '1'
+        });
     } catch (err) {
         console.error('Error loading user profile:', err);
         res.status(500).send('Unable to load your profile.');
@@ -1519,6 +1533,56 @@ rranime.get('/notifications', checkAuthenticated, async (req, res) => {
     }
 });
 
+rranime.get('/notifications/:id/open', checkAuthenticated, async (req, res) => {
+    const notificationId = Number(req.params.id);
+    if (!Number.isSafeInteger(notificationId) || notificationId < 1) {
+        return res.status(404).send('Notification not found.');
+    }
+    try {
+        const [notifications] = await db.execute(
+            `SELECT anime_id, episode_number FROM aninotify WHERE id = ? AND user_id = ?`,
+            [notificationId, String(req.user.id)]
+        );
+        if (!notifications.length) return res.status(404).send('Notification not found.');
+
+        await db.execute(
+            `UPDATE aninotify SET is_read = 1 WHERE id = ? AND user_id = ?`,
+            [notificationId, String(req.user.id)]
+        );
+        const { anime_id: animeId, episode_number: episode } = notifications[0];
+        res.redirect(`/anime/${encodeURIComponent(animeId)}/${encodeURIComponent(episode)}`);
+    } catch (err) {
+        console.error('Error opening episode notification:', err);
+        res.status(500).send('Could not open this episode notification.');
+    }
+});
+
+rranime.get('/notifications/comments/:id/open', checkAuthenticated, async (req, res) => {
+    const notificationId = Number(req.params.id);
+    if (!Number.isSafeInteger(notificationId) || notificationId < 1) {
+        return res.status(404).send('Notification not found.');
+    }
+    try {
+        const [notifications] = await db.execute(
+            `SELECT anime_id, episode_number, comment_id
+             FROM comment_notifications
+             WHERE notification_id = ? AND recipient_user_id = ?`,
+            [notificationId, String(req.user.id)]
+        );
+        if (!notifications.length) return res.status(404).send('Notification not found.');
+
+        await db.execute(
+            `UPDATE comment_notifications SET is_read = 1 WHERE notification_id = ? AND recipient_user_id = ?`,
+            [notificationId, String(req.user.id)]
+        );
+        const { anime_id: animeId, episode_number: episode, comment_id: commentId } = notifications[0];
+        res.redirect(`/anime/${encodeURIComponent(animeId)}/${encodeURIComponent(episode)}#comment-${encodeURIComponent(commentId)}`);
+    } catch (err) {
+        console.error('Error opening comment notification:', err);
+        res.status(500).send('Could not open this comment notification.');
+    }
+});
+
 rranime.post('/notifications/comments/:id/read', checkAuthenticated, async (req, res) => {
     try {
         await db.execute(`UPDATE comment_notifications SET is_read = 1 WHERE notification_id = ? AND recipient_user_id = ?`, [req.params.id, String(req.user.id)]);
@@ -1956,10 +2020,37 @@ async function checkWatchlistEpisodeReleases() {
                 WHERE anime_id = ?
             `, [anime.mal_id]);
             if (tracked.last_episode === null) {
-                await db.execute(`
-                    INSERT IGNORE INTO anime_episode_releases (anime_id, episode_number, released_at)
-                    VALUES (?, ?, NOW())
-                `, [anime.mal_id, releasedCount]);
+                const connection = await db.getConnection();
+                try {
+                    await connection.beginTransaction();
+                    if (releasedCount >= 1) {
+                        await connection.execute(`
+                            INSERT IGNORE INTO aninotify
+                                (user_id, anime_id, episode_number, title, message)
+                            SELECT user_id, ?, 1, ?, ?
+                            FROM user_watchlist
+                            WHERE anime_id = ?
+                        `, [
+                            anime.mal_id,
+                            `New episode: ${anime.title}`,
+                            `Episode 1 of ${anime.title} is now available.`,
+                            anime.mal_id
+                        ]);
+                    }
+                    await connection.execute(`
+                        INSERT IGNORE INTO anime_episode_releases (anime_id, episode_number, released_at)
+                        VALUES (?, ?, NOW())
+                    `, [anime.mal_id, releasedCount]);
+                    await connection.commit();
+                    if (releasedCount >= 1) {
+                        console.log(`Created episode 1 notifications for ${anime.title} on its first release check.`);
+                    }
+                } catch (error) {
+                    await connection.rollback();
+                    throw error;
+                } finally {
+                    connection.release();
+                }
                 await sleep(700);
                 continue;
             }

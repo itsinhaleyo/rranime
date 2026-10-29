@@ -55,7 +55,7 @@
                                         </button>
                                     </form>
                                 <% } %>
-                                <a class="notification-watch-link" href="/anime/<%= notification.anime_id %>/<%= notification.episode_number %><%= notification.notification_type === 'comment' ? `#comment-${notification.comment_id}` : '' %>" aria-label="<%= notification.notification_type === 'comment' ? 'View reply' : `Watch episode ${notification.episode_number}` %>">
+                                <a class="notification-watch-link" href="<%= notification.notification_type === 'comment' ? `/notifications/comments/${notification.id}/open` : `/notifications/${notification.id}/open` %>" aria-label="<%= notification.notification_type === 'comment' ? 'View reply' : `Watch episode ${notification.episode_number}` %>">
                                     <%= notification.notification_type === 'comment' ? 'View reply' : 'Watch' %> <i class="fas fa-arrow-right"></i>
                                 </a>
                                 <form action="/notifications/<%= notification.notification_type === 'comment' ? 'comments/' : '' %><%= notification.id %>/delete" method="POST" onsubmit="return confirm('Delete this notification?');">

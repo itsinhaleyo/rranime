@@ -54,6 +54,30 @@
             <% } else if (!activityRank.isAdmin) { %>
                 <p class="activity-rank-next">You’ve reached the highest activity rank.</p>
             <% } %>
+            <% if (!activityRank.isAdmin) {
+                const rankIcons = ['fa-seedling', 'fa-user-astronaut', 'fa-clapperboard', 'fa-tv', 'fa-star', 'fa-moon', 'fa-crown'];
+                const currentRankIndex = Math.max(0, activityRanks.findIndex(rank => rank.name === activityRank.name));
+                const rankTrackPosition = Math.min(100, ((currentRankIndex + activityRank.progress / 100) / (activityRanks.length - 1)) * 100);
+            %>
+                <div class="activity-level-roadmap" aria-label="Activity rank progression">
+                    <div class="activity-level-track">
+                        <div class="activity-level-track-line" aria-hidden="true">
+                            <span class="activity-level-track-fill" style="left: 7.14%; width: <%= (85.72 * rankTrackPosition / 100).toFixed(2) %>%"></span>
+                            <span class="activity-level-marker" style="left: calc(7.14% + <%= (85.72 * rankTrackPosition / 100).toFixed(2) %>%)"><i class="fas fa-user" aria-hidden="true"></i></span>
+                        </div>
+                        <ol class="activity-level-steps">
+                            <% activityRanks.forEach((rank, index) => { %>
+                                <li class="activity-level-step <%= index < currentRankIndex ? 'complete' : '' %> <%= index === currentRankIndex ? 'current' : '' %>">
+                                    <span class="activity-level-icon"><i class="fas <%= rankIcons[index] %>" aria-hidden="true"></i></span>
+                                    <strong><%= rank.name %></strong>
+                                    <span class="activity-level-xp"><%= rank.xp.toLocaleString() %> XP</span>
+                                </li>
+                            <% }); %>
+                        </ol>
+                    </div>
+                    <p class="activity-level-caption">Your rank journey</p>
+                </div>
+            <% } %>
         </section>
 
         <div class="profile-editor-grid">
@@ -101,11 +125,16 @@
                                 <img id="preview-avatar" alt="Profile avatar" hidden>
                             <% } %>
                         </div>
-                        <span class="profile-card-tag"><i class="fas fa-circle"></i> RRANIME MEMBER</span>
                         <span class="profile-preview-rank <%= activityRank.isAdmin ? 'admin' : '' %>"><%= activityRank.name %></span>
                         <h2 id="preview-name"><%= profile.display_name || 'Your display name' %></h2>
                         <p id="preview-bio"><%= profile.bio || 'Your bio will show up here. Share what you love watching.' %></p>
-                        <div class="profile-card-footer"><i class="fas fa-play"></i> RRAnime member</div>
+                        <div class="profile-card-footer"><i class="fas fa-calendar-plus" aria-hidden="true"></i>
+                            <% if (memberSince) { %>
+                                Member since <%= new Date(memberSince).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                            <% } else { %>
+                                Welcome to RRAnime
+                            <% } %>
+                        </div>
                     </div>
                 </article>
                 <p class="preview-note">This is a preview of your personalized profile card.</p>
