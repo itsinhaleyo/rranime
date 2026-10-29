@@ -26,14 +26,18 @@
                         <p class="view-native-title"><%= anime.title %></p>
                         <div class="anime-meta" style="margin-top: 1rem;">
                             <span class="quality-tag">HD</span>
-                            <span class="sub-dub-tag"><i class="fas fa-closed-captioning"></i> <%= anime.episodes || '?' %></span>
-                            <span class="sub-dub-tag dub"><i class="fas fa-microphone"></i> <%= anime.episodes || '?' %></span>
+                            <% if (anime.status !== 'not_yet_aired') { %>
+                                <a class="sub-dub-tag" href="/anime/<%= anime.mal_id %>/1?audio=sub" aria-label="Watch episode 1 with subtitles"><i class="fas fa-closed-captioning" aria-hidden="true"></i> SUB · <%= anime.episodes || '?' %></a>
+                                <a class="sub-dub-tag dub" href="/anime/<%= anime.mal_id %>/1?audio=dub" aria-label="Watch episode 1 dubbed"><i class="fas fa-microphone" aria-hidden="true"></i> DUB · <%= anime.episodes || '?' %></a>
+                            <% } %>
                             <span class="meta-item"><i class="fas fa-circle-play text-primary"></i> <%= anime.type %></span>
                         </div>
                         <div class="action-buttons-row">
-                            <a href="/anime/<%= anime.mal_id %>/1" class="btn-watch-now">
-                                <i class="fas fa-play"></i> Watch Now
-                            </a>
+                            <% if (anime.status !== 'not_yet_aired') { %>
+                                <a href="/anime/<%= anime.mal_id %>/1" class="btn-watch-now">
+                                    <i class="fas fa-play"></i> Watch Now
+                                </a>
+                            <% } %>
                             <% if (inWatchlist) { %>
                                 <form action="/watchlist/remove/<%= anime.mal_id %>" method="POST" style="display: inline-block;">
                                     <button type="submit" class="btn-add-watchlist btn-is-tracked" style="cursor: pointer;">
@@ -57,6 +61,7 @@
                     </div>
                 </div>
             </section>
+            <% if (anime.status !== 'not_yet_aired') { %>
             <section class="episodes-block-wrapper">
                 <div class="sidebar-header" style="border: none;">
                     <h3><i class="fas fa-list text-primary"></i> Episode Selector Track</h3>
@@ -78,6 +83,61 @@
                     <% } %>
                 </div>
             </section>
+            <% } %>
+            <% if (prequels && prequels.length) { %>
+                <section class="view-sequels-block">
+                    <div class="sidebar-header">
+                        <h3><i class="fas fa-backward text-primary" aria-hidden="true"></i> Prequels</h3>
+                        <span class="stab">Earlier in the story</span>
+                    </div>
+                    <div class="view-sequels-grid">
+                        <% prequels.forEach((prequel) => { %>
+                            <a class="view-sequel-card" href="<%= prequel.isCatalogued ? `/anime/${prequel.mal_id}` : `https://myanimelist.net/anime/${prequel.mal_id}` %>" <%= prequel.isCatalogued ? '' : 'target="_blank" rel="noopener noreferrer"' %>>
+                                <div class="view-sequel-poster">
+                                    <% if (prequel.image_url) { %>
+                                        <img src="<%= prequel.image_url %>" alt="<%= prequel.english_title || prequel.title %>" loading="lazy">
+                                    <% } else { %>
+                                        <i class="fas fa-film" aria-hidden="true"></i>
+                                    <% } %>
+                                </div>
+                                <div class="view-sequel-info">
+                                    <strong><%= prequel.english_title || prequel.title %></strong>
+                                    <span><%= prequel.type %><% if (prequel.episodes) { %> · <%= prequel.episodes %> episodes<% } %></span>
+                                    <% if (!prequel.isCatalogued) { %><small>View on MyAnimeList</small><% } %>
+                                </div>
+                                <i class="fas <%= prequel.isCatalogued ? 'fa-arrow-right' : 'fa-up-right-from-square' %> view-sequel-arrow" aria-hidden="true"></i>
+                            </a>
+                        <% }); %>
+                    </div>
+                </section>
+            <% } %>
+            <% if (sequels && sequels.length) { %>
+                <section class="view-sequels-block">
+                    <div class="sidebar-header">
+                        <h3><i class="fas fa-forward text-primary" aria-hidden="true"></i> Sequels</h3>
+                        <span class="stab">Story continues</span>
+                    </div>
+                    <div class="view-sequels-grid">
+                        <% sequels.forEach((sequel) => { %>
+                            <a class="view-sequel-card" href="<%= sequel.isCatalogued ? `/anime/${sequel.mal_id}` : `https://myanimelist.net/anime/${sequel.mal_id}` %>" <%= sequel.isCatalogued ? '' : 'target="_blank" rel="noopener noreferrer"' %>>
+                                <div class="view-sequel-poster">
+                                    <% if (sequel.image_url) { %>
+                                        <img src="<%= sequel.image_url %>" alt="<%= sequel.english_title || sequel.title %>" loading="lazy">
+                                    <% } else { %>
+                                        <i class="fas fa-film" aria-hidden="true"></i>
+                                    <% } %>
+                                </div>
+                                <div class="view-sequel-info">
+                                    <strong><%= sequel.english_title || sequel.title %></strong>
+                                    <span><%= sequel.type %><% if (sequel.episodes) { %> · <%= sequel.episodes %> episodes<% } %></span>
+                                    <% if (!sequel.isCatalogued) { %><small>View on MyAnimeList</small><% } %>
+                                </div>
+                                <i class="fas <%= sequel.isCatalogued ? 'fa-arrow-right' : 'fa-up-right-from-square' %> view-sequel-arrow" aria-hidden="true"></i>
+                            </a>
+                        <% }); %>
+                    </div>
+                </section>
+            <% } %>
         </main>
         <aside class="sidebar-area">
             <div class="sidebar-block profile-meta-specs">

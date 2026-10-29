@@ -9,13 +9,41 @@ document.addEventListener("DOMContentLoaded", () => {
     const anilistId = theaterWrapper.dataset.anilistId;
     const currentEpisode = Number(theaterWrapper.dataset.currentEpisode);
     const totalEpisodes = Number(theaterWrapper.dataset.totalEpisodes);
+    let resumePosition = Number(theaterWrapper.dataset.resumePosition) || 0;
     let activeProvider = theaterWrapper.dataset.currentProvider || "zoko";
     let activeAudio = theaterWrapper.dataset.currentAudio || "sub";
     let expectedPlayerOrigin = new URL(embedPlayer.src).origin;
+    let playbackPosition = resumePosition;
+    let playbackDuration = 0;
+    let lastProgressSavedAt = 0;
     let advanceTriggered = false;
     const audioToggleButtons = document.querySelectorAll(".audio-toggle");
     const shareEpisodeButton = document.getElementById("share-episode-link");
     const watchTogetherStatus = document.getElementById("watch-together-status");
+    const saveProgress = (force = false, completed = false, keepalive = false) => {
+        const now = Date.now();
+        if (!force && now - lastProgressSavedAt < 10000) return Promise.resolve();
+        lastProgressSavedAt = now;
+        return fetch("/api/watch-progress", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            keepalive,
+            body: JSON.stringify({
+                animeId: malId,
+                episode: currentEpisode,
+                position: playbackPosition,
+                duration: playbackDuration,
+                provider: activeProvider,
+                audio: activeAudio,
+                completed
+            })
+        }).catch(error => console.warn("Could not save watch progress:", error));
+    };
+    const sendPlayer = (type, fields = {}) => {
+        if (activeProvider !== "zoko" || !embedPlayer.contentWindow) return;
+        embedPlayer.contentWindow.postMessage({ channel: "zokoanime", type, ...fields }, expectedPlayerOrigin);
+    };
     if (shareEpisodeButton && watchTogetherStatus) {
         shareEpisodeButton.addEventListener("click", async () => {
             const episodeUrl = new URL(window.location.href);
@@ -100,6 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             embedPlayer.src = finalizedStreamUrl;
             expectedPlayerOrigin = new URL(finalizedStreamUrl).origin;
+            saveProgress(true);
         });
     });
 
@@ -119,15 +148,49 @@ document.addEventListener("DOMContentLoaded", () => {
         return eventNames.some(name => ["complete", "completed", "ended", "finished", "video_ended"].includes(name));
     }
 
-    window.addEventListener("message", event => {
-        if (event.source !== embedPlayer.contentWindow || event.origin !== expectedPlayerOrigin) return;
-        if (!isCompletionMessage(event.data) || advanceTriggered) return;
-        if (!Number.isSafeInteger(currentEpisode) || !Number.isSafeInteger(totalEpisodes) || currentEpisode >= totalEpisodes) return;
-
+    const finishEpisode = () => {
+        if (advanceTriggered) return;
         advanceTriggered = true;
+        const progressSaved = saveProgress(true, true);
+        if (!Number.isSafeInteger(currentEpisode) || !Number.isSafeInteger(totalEpisodes) || currentEpisode >= totalEpisodes) return;
         const nextEpisode = currentEpisode + 1;
         const nextUrl = `/anime/${encodeURIComponent(malId)}/${nextEpisode}?provider=${encodeURIComponent(activeProvider)}&audio=${encodeURIComponent(activeAudio)}&autoplay=1`;
-        window.location.assign(nextUrl);
+        Promise.resolve(progressSaved).finally(() => window.location.assign(nextUrl));
+    };
+
+    window.addEventListener("message", event => {
+        if (event.source !== embedPlayer.contentWindow || event.origin !== expectedPlayerOrigin) return;
+        let message = event.data;
+        if (typeof message === "string") {
+            try { message = JSON.parse(message); } catch { message = null; }
+        }
+        if (activeProvider === "zoko" && message?.channel === "zokoanime") {
+            if (message.type === "ready" && resumePosition > 5) {
+                playbackPosition = resumePosition;
+                sendPlayer("seek", { time: resumePosition });
+                resumePosition = 0;
+            } else if (message.type === "time" || message.type === "watching-log") {
+                const position = Number(message.position ?? message.currentTime);
+                const duration = Number(message.duration);
+                if (Number.isFinite(position) && position >= 0) playbackPosition = position;
+                if (Number.isFinite(duration) && duration >= 0) playbackDuration = duration;
+                saveProgress();
+            } else if (message.type === "seeked") {
+                const position = Number(message.position);
+                const duration = Number(message.duration);
+                if (Number.isFinite(position) && position >= 0) playbackPosition = position;
+                if (Number.isFinite(duration) && duration >= 0) playbackDuration = duration;
+                saveProgress(true);
+            } else if (message.type === "pause") {
+                saveProgress(true);
+            }
+        }
+        if (isCompletionMessage(message)) finishEpisode();
+    });
+
+    window.addEventListener("pagehide", () => saveProgress(true, false, true));
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") saveProgress(true);
     });
 
     const theaterToggleButton = document.querySelector(".btn-theater-toggle");

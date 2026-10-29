@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/css/header.css">
     <link rel="stylesheet" href="/css/footer.css">
     <link rel="stylesheet" href="/css/recent-comments.css">
+    <link rel="stylesheet" href="/css/continue-watching.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/script/home-slider.js" defer></script>
     <script src="/script/estimated-schedule.js" defer></script>
@@ -86,6 +87,13 @@
                         <p class="empty-notice">No trending titles found.</p>
                     <% } %>
                 </div>
+            </section>
+            <section class="continue-watching-section" aria-labelledby="continue-watching-heading">
+                <div class="continue-watching-heading">
+                    <h2 class="section-title" id="continue-watching-heading"><i class="fas fa-clock-rotate-left text-primary" aria-hidden="true"></i> Continue Watching</h2>
+                    <a href="/continue-watching">View all <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                </div>
+                <%- include('continue-watching-items', { continueWatching: typeof continueWatching === 'undefined' ? [] : continueWatching }) %>
             </section>
             <%- include('recent-comments', { recentComments }) %>
             <section class="latest-section">

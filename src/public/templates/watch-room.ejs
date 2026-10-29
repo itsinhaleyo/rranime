@@ -72,7 +72,7 @@
                 </div>
             <% } %>
             <div class="watch-room-audio-row">
-                <span class="watch-room-audio-label"><i class="fas fa-language" aria-hidden="true"></i> Room audio</span>
+                <span class="watch-room-audio-label" id="watch-room-audio-label"><i class="fas fa-language" aria-hidden="true"></i> Room audio · <span id="watch-room-audio-current"><%= room.audio.toUpperCase() %></span></span>
                 <% if (isHost) { %>
                     <div class="watch-room-audio-options" role="group" aria-label="Choose shared room audio">
                         <button type="button" class="watch-room-audio-option <%= room.audio === 'sub' ? 'active' : '' %>" data-room-audio-option="sub" aria-pressed="<%= room.audio === 'sub' ? 'true' : 'false' %>">SUB</button>
@@ -146,8 +146,13 @@
             <div class="watch-room-viewers" id="watch-room-viewers" aria-label="People in the room"></div>
             <div class="watch-room-messages" id="watch-room-messages" aria-live="polite">
                 <% messages.forEach(message => { %>
+                    <% const messageRank = message.activityRank || { name: String(message.user_id) === '1' ? 'ADMIN' : 'Newbie', isAdmin: String(message.user_id) === '1' }; %>
                     <article class="watch-room-message" data-message-id="<%= message.message_id %>">
-                        <div class="watch-room-message-meta"><strong><%= message.display_name %></strong><time><%= new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) %></time></div>
+                        <div class="watch-room-message-meta">
+                            <span class="watch-room-rank-badge <%= messageRank.isAdmin ? 'admin' : '' %>"><%= messageRank.name %></span>
+                            <strong><%= message.display_name %></strong>
+                            <time><%= new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) %></time>
+                        </div>
                         <p><%= message.body %></p>
                     </article>
                 <% }); %>

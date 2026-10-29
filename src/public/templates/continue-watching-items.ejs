@@ -1,0 +1,32 @@
+<% if (continueWatching && continueWatching.length) { %>
+    <div class="continue-watching-grid">
+        <% continueWatching.forEach(item => {
+            const position = Math.max(0, Number(item.position_seconds) || 0);
+            const duration = Math.max(0, Number(item.duration_seconds) || 0);
+            const progress = duration > 0 ? Math.min(100, Math.floor((position / duration) * 100)) : 0;
+            const provider = ['zoko', 'anixo', 'megavid'].includes(item.provider) ? item.provider : 'zoko';
+            const audio = item.audio === 'dub' ? 'dub' : 'sub';
+            const resumeSupported = provider === 'zoko' && position > 5 && !item.is_completed;
+            const resumeUrl = `/anime/${encodeURIComponent(String(item.anime_id))}/${encodeURIComponent(String(item.episode_number))}?provider=${provider}&amp;audio=${audio}&amp;resume=${resumeSupported ? '1' : '0'}&amp;autoplay=1`;
+        %>
+            <article class="continue-watching-card">
+                <a class="continue-watching-poster" href="<%- resumeUrl %>" aria-label="Continue <%= item.english_title || item.title %>, episode <%= item.episode_number %>">
+                    <% if (item.image_url) { %><img src="<%= item.image_url %>" alt="" loading="lazy"><% } else { %><span class="continue-watching-poster-fallback"><i class="fas fa-film" aria-hidden="true"></i></span><% } %>
+                    <span class="continue-watching-play"><i class="fas fa-play" aria-hidden="true"></i></span>
+                    <% if (duration > 0) { %><span class="continue-watching-progress"><span style="width: <%= progress %>%"></span></span><% } %>
+                </a>
+                <div class="continue-watching-copy">
+                    <a class="continue-watching-title" href="<%- resumeUrl %>" data-anime-title data-title-en="<%= item.english_title || item.title %>" data-title-ja="<%= item.japanese_title || item.title %>"><%= item.english_title || item.title %></a>
+                    <span class="continue-watching-meta">Episode <%= item.episode_number %> · <%= audio.toUpperCase() %></span>
+                    <% if (duration > 0) { %>
+                        <span class="continue-watching-time"><%= Math.floor(position / 60) %>:<%= String(Math.floor(position % 60)).padStart(2, '0') %> watched · <%= progress %>%</span>
+                    <% } else { %>
+                        <span class="continue-watching-time"><%= resumeSupported ? 'Resume available' : 'Episode opened' %></span>
+                    <% } %>
+                </div>
+            </article>
+        <% }); %>
+    </div>
+<% } else { %>
+    <p class="continue-watching-empty">Your episodes will appear here as you watch. Resume timestamps are saved when the Zoko player reports playback progress.</p>
+<% } %>

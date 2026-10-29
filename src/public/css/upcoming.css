@@ -1,0 +1,3 @@
+.upcoming-start-date { display: flex; align-items: center; gap: .4rem; margin: .55rem 0 0; color: var(--text-muted); font-size: .76rem; }
+.upcoming-start-date i { color: var(--accent); }
+.upcoming-container .airing-header p strong { color: var(--text-main); }

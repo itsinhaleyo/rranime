@@ -109,15 +109,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const setRoomAudio = (nextAudio, position = currentPosition, nextPaused = paused, sentAt = Date.now()) => {
-        if (!['sub', 'dub'].includes(nextAudio)) return;
-        if (nextAudio === audio) return;
+        if (!['sub', 'dub'].includes(nextAudio) || nextAudio === audio) return;
         audio = nextAudio;
         currentPosition = Number(position) + (nextPaused ? 0 : Math.max(0, (Date.now() - Number(sentAt || Date.now())) / 1000));
         paused = Boolean(nextPaused);
         playbackStarted = false;
         completionArmed = false;
         roomPage.dataset.audio = audio;
-        document.getElementById('watch-room-audio-label').textContent = audio.toUpperCase();
+        document.getElementById('watch-room-audio-current').textContent = audio.toUpperCase();
         document.getElementById('watch-room-player-audio').textContent = audio.toUpperCase();
         document.querySelectorAll('[data-room-audio-option]').forEach(button => {
             const active = button.dataset.roomAudioOption === audio;
@@ -128,10 +127,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (roomAudioValue) roomAudioValue.textContent = audio.toUpperCase();
         const episodePageLink = document.getElementById('watch-room-episode-page-link');
         if (episodePageLink) episodePageLink.href = `/anime/${encodeURIComponent(animeId)}/${encodeURIComponent(currentEpisode)}?audio=${encodeURIComponent(audio)}`;
-        const params = new URLSearchParams({ color: 'ff3c20', autoplay: 'true', autonext: 'true' });
-        player.src = `https://zokoanime.video/stream/mal/${encodeURIComponent(animeId)}/${encodeURIComponent(currentEpisode)}/${audio}?${params}`;
+
+        // Match the episode page's Zoko stream path and retain the room's synced playback state.
         expectedOrigin = 'https://zokoanime.video';
-        status.textContent = `Switching the room to ${audio.toUpperCase()}…`;
+        player.src = `https://zokoanime.video/stream/mal/${encodeURIComponent(animeId)}/${encodeURIComponent(currentEpisode)}/${encodeURIComponent(audio)}?color=ff3c20&autoplay=true&autonext=true`;
+        status.textContent = `Switching everyone to ${audio.toUpperCase()}…`;
     };
 
     const closeRoom = reason => {
@@ -174,13 +174,17 @@ document.addEventListener('DOMContentLoaded', () => {
         article.className = 'watch-room-message';
         const meta = document.createElement('div');
         meta.className = 'watch-room-message-meta';
+        const rank = message.activityRank || { name: 'Newbie', isAdmin: String(message.userId) === '1' };
+        const badge = document.createElement('span');
+        badge.className = `watch-room-rank-badge${rank.isAdmin ? ' admin' : ''}`;
+        badge.textContent = rank.name || 'Newbie';
         const name = document.createElement('strong');
         name.textContent = message.displayName || 'Anime fan';
         const time = document.createElement('time');
         time.textContent = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         const body = document.createElement('p');
         body.textContent = message.body || '';
-        meta.append(name, time);
+        meta.append(badge, name, time);
         article.append(meta, body);
         messages.append(article);
         messages.scrollTop = messages.scrollHeight;

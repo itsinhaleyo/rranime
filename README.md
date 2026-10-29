@@ -5,13 +5,14 @@ RRAnime is an anime discovery, watchlist, and community website built with Node.
 ## Features
 
 - Browse popular and currently airing anime, trending titles, genres, and weekly release schedules.
+- Browse the next anime season through the MyAnimeList seasonal anime API.
 - Search using English, romaji, or Japanese titles, and switch displayed anime titles between English and Japanese.
-- View anime details, streaming providers, subtitles or dubs, episode navigation, series and episode information, episode discussions, and a countdown to the next scheduled episode when data is available. Episodes advance automatically when the selected player reports completion.
+- View anime details, prequel and sequel relationships, streaming providers, subtitles or dubs, episode navigation, series and episode information, episode discussions, and a countdown to the next scheduled episode when data is available. Watch controls and the episode selector are hidden for titles marked `not_yet_aired`. Episodes advance automatically when the selected player reports completion.
 - Share a link to an episode.
 - Add anime to a personal watchlist or import a list from a MyAnimeList username.
-- Track episode pages opened by each account.
+- Track episode history and resume position. Continue Watching is available from `/home` and the hamburger menu; precise timestamps are currently recorded for the Zoko player, which exposes playback events.
 - Customize a profile with a display name, bio, avatar URL, and accent color.
-- Earn activity XP by opening episode pages and posting comments or replies. Activity ranks appear on profiles and comments. User ID 1 always has the ADMIN rank.
+- Earn activity XP by opening episode pages and posting comments or replies. Activity rank badges appear on profiles, episode comments, and live watch room chat. User ID 1 always has the ADMIN rank.
 - Post episode comments and replies. Users receive in-app notifications when someone replies to their comment.
 - See newest comments on the landing page and /home, and a seven-day estimated subtitled release schedule on /home.
 - Receive in-app episode notifications for anime on the watchlist.
@@ -57,9 +58,9 @@ The application routes requests through a virtual host configured as rranime.onl
 
 ### 3. Prepare the database
 
-Create a MySQL-compatible database and apply src/database/schema.sql to a new, empty database. The schema defines the anime catalog and genres, watchlists, profiles, episode comments and replies, notifications, watched episodes, activity XP, saved schedule entries, and watch rooms with chat. The MySQL session store creates and manages its own session table.
+Create a MySQL-compatible database and apply src/database/schema.sql to a new, empty database. The schema defines the anime catalog and genres, watchlists, profiles, episode comments and replies, notifications, watched episode progress, activity XP, saved schedule entries, and watch rooms with chat. The MySQL session store creates and manages its own session table.
 
-There is no general migration runner for existing databases. Back up an existing database and compare its schema before deploying. Do not run the full schema over a populated database. Apply reviewed migrations so the Japanese-title column, airing-schedule table, watch-room tables, and other required schema are present before starting the app. The app initializes XP events and totals from existing watch and comment records when needed.
+There is no general migration runner for existing databases. Back up an existing database and compare its schema before deploying. Do not run the full schema over a populated database. Apply reviewed migrations so the Japanese-title column, airing-schedule table, watch-room tables, and other required schema are present before starting the app. For existing databases with `user_watched_episodes`, apply `src/database/migrations/20261028_add_episode_progress.sql` once to add playback position fields. The app initializes XP events and totals from existing watch and comment records when needed.
 
 ### 4. Start the application
 
@@ -82,11 +83,12 @@ All application pages and APIs require authentication except /login. Unmatched p
 | Route | Purpose |
 | --- | --- |
 | / | Landing page with popular airing anime and newest comments |
-| /home | Spotlight, airing anime, newest comments, latest episodes, and estimated schedule |
+| /home | Spotlight, airing anime, Continue Watching, newest comments, latest episodes, and estimated schedule |
 | /login, POST /login, /logout | Sign in and sign out |
 | /profile, POST /profile | View and customize your profile and activity rank |
+| /continue-watching | View recent unfinished episodes and resume playback |
 | /search?keyword=... | Search anime by title |
-| /anime/:animeId | Anime details, watchlist controls, and episode directory |
+| /anime/:animeId | Anime details, AniList prequel/sequel relationships, watchlist controls, and episode directory (episode controls are hidden for `not_yet_aired` titles) |
 | /anime/:animeId/:episode | Episode player, schedule countdown, discussion, and replies |
 | /watch2gether | Browse open episode rooms |
 | POST /watch2gether/create | Create a room from an episode page |
@@ -96,6 +98,7 @@ All application pages and APIs require authentication except /login. Unmatched p
 | POST /anime/:animeId/:episode/comments/:commentId/reply | Reply to a comment and notify its author |
 | POST /anime/:animeId/:episode/comments/:commentId/delete | Delete your own comment or reply |
 | /airing, /trending, /hentai | Browse airing, trending, or Rx-rated titles |
+| /upcoming | Browse the next season's anime from the MyAnimeList API |
 | /airingschedule/sub, /airingschedule/dub | View the weekly subtitled or dubbed release timetable |
 | /genres, /genres/:genreId | Browse genres |
 | /watchlist | View your watchlist |
@@ -106,6 +109,7 @@ All application pages and APIs require authentication except /login. Unmatched p
 | POST /notifications/comments/:id/read, POST /notifications/comments/:id/delete | Manage a reply notification |
 | /api/notifications/preview | Recent notifications for the header |
 | /api/anime-suggestions?q=... | Anime title suggestions for search |
+| POST /api/watch-progress | Save the signed-in user's episode position and completion state |
 | /api/watch-rooms/:roomId/events | Live room state, presence, and chat event stream |
 | /api/watch-rooms/:roomId/messages | Send a room chat message |
 | /api/watch-rooms/:roomId/state | Host playback-state updates |
@@ -122,7 +126,7 @@ All application pages and APIs require authentication except /login. Unmatched p
 - Ranks progress through Newbie (0 XP), Side Character (1,000), Casual Watcher (2,500), Seasonal Viewer (10,000), Certified Weeb (25,000), Anime Veteran (50,000), and Anime Legend (100,000).
 - User ID 1 always displays ADMIN regardless of XP.
 
-Opening an episode page records progress; it does not verify that playback started or finished.
+Opening an episode page records it in history; Zoko playback events update the saved position and duration. Continue Watching can seek back to that timestamp when the episode is reopened with Zoko. Other providers do not expose playback progress in the current implementation, so their timestamps cannot be tracked or resumed precisely. Completion is only recorded when the player reports an end event.
 
 ## Schedule and background updates
 
@@ -138,7 +142,7 @@ Episode notifications reflect AniList release information and do not confirm ava
 
 ## Title language preference
 
-The English/Japanese title control is included in the shared header. The selected preference is saved in browser local storage. Japanese title data comes from MyAnimeList catalog synchronization and native titles in the AniSchedule feed; coverage depends on the available source data.
+The English/Japanese title control is included in the shared header. The selected preference is saved in browser local storage. Japanese title data comes from MyAnimeList catalog synchronization and native titles in the AniSchedule feed; coverage depends on the available source data. The Upcoming Anime page queries the next season from MyAnimeList. The `/view` detail page gets prequel and sequel relationships from AniList; entries already in the local catalog link to RRAnime detail pages, while other entries link to MyAnimeList.
 
 ## Episode watch rooms
 

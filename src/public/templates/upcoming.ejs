@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upcoming Anime · RRAnime</title>
+    <link rel="stylesheet" href="/css/airing.css">
+    <link rel="stylesheet" href="/css/upcoming.css">
+    <link rel="stylesheet" href="/css/header.css">
+    <link rel="stylesheet" href="/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<%- include('header') %>
+<main class="airing-container upcoming-container">
+    <header class="airing-header">
+        <h1><i class="fas fa-calendar-plus pulse-icon" aria-hidden="true"></i> Upcoming Anime</h1>
+        <p>MyAnimeList seasonal lineup · <strong><%= seasonLabel %></strong></p>
+    </header>
+    <% if (loadError) { %>
+        <div class="empty-state"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i><p><%= loadError %></p></div>
+    <% } else if (!animeList.length) { %>
+        <div class="empty-state"><i class="fas fa-tv-slash" aria-hidden="true"></i><p>No upcoming anime were returned for <%= seasonLabel %>.</p></div>
+    <% } else { %>
+        <div class="anime-grid">
+            <% animeList.forEach(anime => { %>
+                <a href="/anime/<%= anime.mal_id %>" class="anime-card">
+                    <div class="card-image-wrapper">
+                        <img src="<%= anime.image_url || 'https://placeholder.com' %>" alt="<%= anime.english_title || anime.title %>" loading="lazy">
+                        <% if (anime.score && anime.score > 0) { %><div class="card-badge">⭐ <%= Number(anime.score).toFixed(2) %></div><% } %>
+                    </div>
+                    <div class="card-details">
+                        <h2 class="anime-title" title="<%= anime.english_title || anime.title %>" data-anime-title data-title-en="<%= anime.english_title || anime.title %>" data-title-ja="<%= anime.japanese_title || anime.title %>"><%= anime.english_title || anime.title %></h2>
+                        <div class="anime-meta">
+                            <span class="meta-type"><%= anime.type || 'TV' %></span>
+                            <span class="meta-divider">•</span>
+                            <span class="meta-episodes"><%= anime.episodes ? `${anime.episodes} Ep` : 'Episodes TBD' %></span>
+                        </div>
+                        <% if (anime.start_date) { %><p class="upcoming-start-date"><i class="fas fa-calendar-day" aria-hidden="true"></i> Starts <%= anime.start_date %></p><% } %>
+                    </div>
+                </a>
+            <% }); %>
+        </div>
+    <% } %>
+</main>
+<%- include('footer') %>
+</body>
+</html>

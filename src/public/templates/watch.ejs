@@ -14,7 +14,7 @@
 <%- include('header') %>
     <div class="main-layout watch-theater-layout">
         <main class="content-area">
-            <section class="video-theater-wrapper" data-mal-id="<%= anime.mal_id %>" data-anilist-id="<%= anilistId || '' %>" data-current-episode="<%= currentEpisode %>" data-total-episodes="<%= totalEpisodes %>" data-current-provider="<%= selectedProvider %>" data-current-audio="<%= selectedAudio %>">
+            <section class="video-theater-wrapper" data-mal-id="<%= anime.mal_id %>" data-anilist-id="<%= anilistId || '' %>" data-current-episode="<%= currentEpisode %>" data-total-episodes="<%= totalEpisodes %>" data-current-provider="<%= selectedProvider %>" data-current-audio="<%= selectedAudio %>" data-resume-position="<%= typeof resumePosition === 'undefined' ? 0 : resumePosition %>">
                 <div class="player-canvas">
                     <iframe 
                         id="rranime-embed-player"

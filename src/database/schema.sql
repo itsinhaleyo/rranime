@@ -113,9 +113,15 @@ CREATE TABLE user_watched_episodes (
     user_id VARCHAR(100) NOT NULL,
     anime_id INT NOT NULL,
     episode_number INT NOT NULL,
+    position_seconds DECIMAL(10,3) NOT NULL DEFAULT 0,
+    duration_seconds DECIMAL(10,3) NOT NULL DEFAULT 0,
+    provider VARCHAR(16) NOT NULL DEFAULT 'zoko',
+    audio VARCHAR(8) NOT NULL DEFAULT 'sub',
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
     watched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, anime_id, episode_number),
-    INDEX idx_user_anime (user_id, anime_id)
+    INDEX idx_user_anime (user_id, anime_id),
+    INDEX idx_user_continue_watching (user_id, is_completed, watched_at)
 );
 
 CREATE TABLE user_xp_totals (

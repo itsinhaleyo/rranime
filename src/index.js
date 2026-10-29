@@ -1,7 +1,6 @@
 require('dotenv').config();
 const path = require('path'), crypto = require('crypto'), express = require('express'), session = require('express-session'), MySQLStore = require('express-mysql-session')(session), axios = require('axios'), passport = require('passport'), nodemailer = require('nodemailer'), vhost = require('vhost'), cron = require('node-cron');
 
-// Connect to Database
 let db;
 (async () => {
     try {
@@ -119,6 +118,8 @@ function getActivityRank(userId, totalXp) {
 
 const airingScheduleCache = new Map();
 const AIRING_SCHEDULE_CACHE_TTL_MS = 5 * 60 * 1000;
+const upcomingAnimeCache = new Map();
+const UPCOMING_ANIME_CACHE_TTL_MS = 30 * 60 * 1000;
 const watchRoomClients = new Map();
 
 function sendWatchRoomEvent(roomId, eventName, payload) {
@@ -140,6 +141,14 @@ function getWatchRoomPresence(roomId) {
 
 function broadcastWatchRoomPresence(roomId) {
     sendWatchRoomEvent(roomId, 'presence', { members: getWatchRoomPresence(roomId) });
+}
+
+function getNextMALSeason(date) {
+    const month = date.getMonth();
+    if (month <= 1) return { year: date.getFullYear(), season: 'spring' };
+    if (month <= 4) return { year: date.getFullYear(), season: 'summer' };
+    if (month <= 7) return { year: date.getFullYear(), season: 'fall' };
+    return { year: date.getFullYear() + 1, season: 'winter' };
 }
 
 rranime.get('/login', (req, res) => {
@@ -289,6 +298,24 @@ rranime.get('/home', checkAuthenticated, async (req, res) => {
             ORDER BY score DESC
             LIMIT 12
         `);
+        const [continueWatching] = await db.execute(`
+            SELECT w.anime_id, w.episode_number, w.position_seconds, w.duration_seconds,
+                   w.provider, w.audio, w.watched_at,
+                   a.title, a.english_title, a.japanese_title, a.image_url
+            FROM user_watched_episodes w
+            INNER JOIN mal_anime a ON a.mal_id = w.anime_id
+            WHERE w.user_id = ? AND w.is_completed = FALSE
+              AND (w.duration_seconds <= 0 OR w.position_seconds < w.duration_seconds - 30)
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM user_watched_episodes newer
+                  WHERE newer.user_id = w.user_id AND newer.anime_id = w.anime_id
+                    AND (newer.watched_at > w.watched_at
+                         OR (newer.watched_at = w.watched_at AND newer.episode_number > w.episode_number))
+              )
+            ORDER BY w.watched_at DESC
+            LIMIT 6
+        `, [String(req.user.id)]);
         await ensureUserXpReady();
         const [recentComments] = await db.execute(`
             SELECT c.comment_id, c.parent_comment_id, c.body, c.created_at,
@@ -348,6 +375,7 @@ rranime.get('/home', checkAuthenticated, async (req, res) => {
         });
         res.render('home', {
             airingAnime: airingAnime,
+            continueWatching,
             spotlightAnime: spotlight,
             latestAnime: latestEpisodes,
             sidebarAnime: sidebarTopAnime,
@@ -358,6 +386,33 @@ rranime.get('/home', checkAuthenticated, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send("Error loading RRA home page: " + err.message);
+    }
+});
+
+rranime.get('/continue-watching', checkAuthenticated, async (req, res) => {
+    try {
+        const [continueWatching] = await db.execute(`
+            SELECT w.anime_id, w.episode_number, w.position_seconds, w.duration_seconds,
+                   w.provider, w.audio, w.watched_at,
+                   a.title, a.english_title, a.japanese_title, a.image_url
+            FROM user_watched_episodes w
+            INNER JOIN mal_anime a ON a.mal_id = w.anime_id
+            WHERE w.user_id = ? AND w.is_completed = FALSE
+              AND (w.duration_seconds <= 0 OR w.position_seconds < w.duration_seconds - 30)
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM user_watched_episodes newer
+                  WHERE newer.user_id = w.user_id AND newer.anime_id = w.anime_id
+                    AND (newer.watched_at > w.watched_at
+                         OR (newer.watched_at = w.watched_at AND newer.episode_number > w.episode_number))
+              )
+            ORDER BY w.watched_at DESC
+            LIMIT 50
+        `, [String(req.user.id)]);
+        res.render('continue-watching', { continueWatching });
+    } catch (error) {
+        console.error('Could not load Continue Watching:', error);
+        res.status(500).send('Unable to load your Continue Watching list.');
     }
 });
 
@@ -404,9 +459,34 @@ rranime.get('/anime/:animeid', checkAuthenticated, async (req, res) => {
              WHERE mal_id != ? AND type = ?
              ORDER BY score DESC LIMIT 5`, [animeId, animeDetails.type]
         );
+        let sequels = [];
+        let prequels = [];
+        try {
+            const relatedRelations = await fetchAnimeRelationsFromAniList(animeDetails.mal_id);
+            if (relatedRelations.length) {
+                const relatedMalIds = relatedRelations.map(item => item.malId);
+                const [cataloguedAnime] = await db.query(
+                    `SELECT mal_id, title, english_title, japanese_title, type, score, image_url
+                     FROM mal_anime WHERE mal_id IN (?)`, [relatedMalIds]
+                );
+                const catalogById = new Map(cataloguedAnime.map(item => [Number(item.mal_id), item]));
+                const resolvedRelations = relatedRelations.map(relation => {
+                    const catalogItem = catalogById.get(relation.malId);
+                    return catalogItem
+                        ? { ...relation, ...catalogItem, mal_id: relation.malId, isCatalogued: true }
+                        : { ...relation, mal_id: relation.malId, isCatalogued: false };
+                });
+                sequels = resolvedRelations.filter(relation => relation.relationType === 'SEQUEL');
+                prequels = resolvedRelations.filter(relation => relation.relationType === 'PREQUEL');
+            }
+        } catch (error) {
+            console.warn(`Could not load sequel relations for MAL ID ${animeDetails.mal_id}:`, error.message);
+        }
         res.render('view', {
             anime: animeDetails,
             recommendations: recommendedAnime,
+            sequels,
+            prequels,
             inWatchlist: isSavedInWatchlist,
             watchedEpisodes: watchedEpisodeRows.map(row => Number(row.episode_number))
         });
@@ -464,11 +544,24 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
         } else {
             initialStreamUrl = `https://zokoanime.video/stream/mal/${encodeURIComponent(malId)}/${encodeURIComponent(currentEp)}/${selectedAudio}?color=ff3c20${autoPlayNext ? '&autoplay=true' : ''}`;
         }
+        let resumePosition = 0;
         if (currentEp >= 1 && currentEp <= totalEpisodesCount) {
             const [watchInsert] = await db.execute(`
-                INSERT IGNORE INTO user_watched_episodes (user_id, anime_id, episode_number)
-                VALUES (?, ?, ?)
-            `, [req.user.id, animeDetails.mal_id, currentEp]);
+                INSERT IGNORE INTO user_watched_episodes (user_id, anime_id, episode_number, provider, audio)
+                VALUES (?, ?, ?, ?, ?)
+            `, [req.user.id, animeDetails.mal_id, currentEp, selectedProvider, selectedAudio]);
+            await db.execute(`
+                UPDATE user_watched_episodes SET provider = ?, audio = ?
+                WHERE user_id = ? AND anime_id = ? AND episode_number = ?
+            `, [selectedProvider, selectedAudio, String(req.user.id), animeDetails.mal_id, currentEp]);
+            const [progressRows] = await db.execute(`
+                SELECT position_seconds, is_completed
+                FROM user_watched_episodes
+                WHERE user_id = ? AND anime_id = ? AND episode_number = ?
+            `, [String(req.user.id), animeDetails.mal_id, currentEp]);
+            if (req.query.resume === '1' && selectedProvider === 'zoko' && !progressRows[0]?.is_completed) {
+                resumePosition = Number(progressRows[0]?.position_seconds) || 0;
+            }
             if (watchInsert.affectedRows > 0) {
                 await awardActivityXpSafely(req.user.id, 'watch', `${animeDetails.mal_id}:${currentEp}`, 10, 5);
             }
@@ -540,6 +633,7 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
             totalEpisodes: totalEpisodesCount,
             selectedProvider,
             selectedAudio,
+            resumePosition,
             initialStreamUrl,
             nextAiring,
             watchedEpisodes: watchedEpisodeRows.map(row => Number(row.episode_number)),
@@ -552,6 +646,34 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
     } catch (err) {
         console.error(err);
         res.status(500).send("Error compiling video theater streaming canvas: " + err.message);
+    }
+});
+
+rranime.post('/api/watch-progress', checkAuthenticated, async (req, res) => {
+    const animeId = Number(req.body.animeId);
+    const episode = Number(req.body.episode);
+    const position = Number(req.body.position);
+    const duration = Number(req.body.duration);
+    const provider = ['zoko', 'anixo', 'megavid'].includes(req.body.provider) ? req.body.provider : null;
+    const audio = ['sub', 'dub'].includes(req.body.audio) ? req.body.audio : null;
+    const completed = req.body.completed === true;
+    if (!Number.isSafeInteger(animeId) || animeId < 1 || !Number.isSafeInteger(episode) || episode < 1
+        || !Number.isFinite(position) || position < 0 || position > 21600
+        || !Number.isFinite(duration) || duration < 0 || duration > 21600 || !provider || !audio) {
+        return res.status(400).json({ error: 'Invalid episode progress.' });
+    }
+    try {
+        const [result] = await db.execute(`
+            UPDATE user_watched_episodes
+            SET position_seconds = ?, duration_seconds = ?, provider = ?, audio = ?,
+                is_completed = IF(? = 1, TRUE, is_completed), watched_at = CURRENT_TIMESTAMP
+            WHERE user_id = ? AND anime_id = ? AND episode_number = ?
+        `, [position, duration, provider, audio, completed ? 1 : 0, String(req.user.id), animeId, episode]);
+        if (!result.affectedRows) return res.status(404).json({ error: 'Episode history was not found.' });
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Could not save episode progress:', error);
+        res.status(500).json({ error: 'Unable to save episode progress.' });
     }
 });
 
@@ -705,15 +827,19 @@ rranime.get(['/watch2gether/:roomId', '/watch2gether/:roomId/episode/:episode'],
     try {
         const [roomRows] = await db.execute('SELECT * FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
         if (!roomRows.length) return res.status(404).send('This watch room has ended or does not exist.');
+        await ensureUserXpReady();
         const room = roomRows[0];
         const canonicalRoomUrl = `/watch2gether/${encodeURIComponent(room.room_id)}/episode/${Number(room.current_episode)}`;
         if (Number(req.params.episode) !== Number(room.current_episode)) {
             return res.redirect(302, canonicalRoomUrl);
         }
         const [messageRows] = await db.execute(`
-            SELECT message_id, user_id, display_name, body, created_at
-            FROM watch_room_messages WHERE room_id = ?
-            ORDER BY message_id DESC LIMIT 50
+            SELECT m.message_id, m.user_id, m.display_name, m.body, m.created_at,
+                   COALESCE(x.xp, 0) AS activity_xp
+            FROM watch_room_messages m
+            LEFT JOIN user_xp_totals x ON x.user_id = m.user_id
+            WHERE m.room_id = ?
+            ORDER BY m.message_id DESC LIMIT 50
         `, [room.room_id]);
         const [profileRows] = await db.execute(
             'SELECT display_name FROM user_profiles WHERE user_id = ?',
@@ -740,7 +866,10 @@ rranime.get(['/watch2gether/:roomId', '/watch2gether/:roomId/episode/:episode'],
         res.render('watch-room', {
             room,
             anime,
-            messages: messageRows.reverse(),
+            messages: messageRows.reverse().map(message => ({
+                ...message,
+                activityRank: getActivityRank(message.user_id, message.activity_xp)
+            })),
             currentUserId: String(req.user.id),
             currentUserName: profileRows[0]?.display_name || `Anime fan #${req.user.id}`,
             isHost: String(room.host_user_id) === String(req.user.id)
@@ -813,11 +942,13 @@ rranime.post('/api/watch-rooms/:roomId/messages', checkAuthenticated, async (req
     try {
         const [rooms] = await db.execute('SELECT room_id FROM watch_rooms WHERE room_id = ?', [req.params.roomId]);
         if (!rooms.length) return res.status(404).json({ error: 'This room has ended.' });
+        await ensureUserXpReady();
         const [profileRows] = await db.execute(
             'SELECT display_name FROM user_profiles WHERE user_id = ?',
             [String(req.user.id)]
         );
         const displayName = profileRows[0]?.display_name || `Anime fan #${req.user.id}`;
+        const [xpRows] = await db.execute('SELECT xp FROM user_xp_totals WHERE user_id = ?', [String(req.user.id)]);
         const [result] = await db.execute(`
             INSERT INTO watch_room_messages (room_id, user_id, display_name, body)
             VALUES (?, ?, ?, ?)
@@ -826,6 +957,7 @@ rranime.post('/api/watch-rooms/:roomId/messages', checkAuthenticated, async (req
             messageId: String(result.insertId),
             userId: String(req.user.id),
             displayName,
+            activityRank: getActivityRank(req.user.id, xpRows[0]?.xp || 0),
             body,
             createdAt: new Date().toISOString()
         };
@@ -889,7 +1021,7 @@ rranime.post('/api/watch-rooms/:roomId/audio', checkAuthenticated, async (req, r
             episode: Number(roomState[0].current_episode),
             sentAt: Date.now()
         });
-        res.json({ ok: true });
+        res.json({ ok: true, audio });
     } catch (error) {
         console.error('Could not change watch room audio:', error);
         res.status(500).json({ error: 'Unable to change room audio.' });
@@ -1034,6 +1166,27 @@ rranime.get('/airing', checkAuthenticated, async (req, res) => {
     } catch (err) {
         console.error("Error loading currently airing anime page:", err);
         res.status(500).send("Server Error loading airing schedules.");
+    }
+});
+
+rranime.get('/upcoming', checkAuthenticated, async (req, res) => {
+    const nextSeason = getNextMALSeason(new Date());
+    try {
+        const animeList = await fetchUpcomingMALSeason(nextSeason.year, nextSeason.season);
+        res.render('upcoming', {
+            animeList,
+            seasonLabel: `${nextSeason.season[0].toUpperCase()}${nextSeason.season.slice(1)} ${nextSeason.year}`,
+            loadError: null
+        });
+    } catch (error) {
+        console.error('Could not load upcoming anime from MyAnimeList:', error.message);
+        res.status(error.statusCode || 502).render('upcoming', {
+            animeList: [],
+            seasonLabel: `${nextSeason.season[0].toUpperCase()}${nextSeason.season.slice(1)} ${nextSeason.year}`,
+            loadError: process.env.MAL_ID || process.env.MAL_CLIENT_ID
+                ? 'MyAnimeList could not provide the upcoming season right now. Please try again later.'
+                : 'Set MAL_ID in the server environment to load upcoming anime.'
+        });
     }
 });
 
@@ -1469,7 +1622,6 @@ rranime.get('/*any', (req, res) => { res.redirect('/home'); });
 mainweb.use(vhost(`rranime.online`, rranime));
 mainweb.listen(port, () => { console.log(`Website running on PORT:${port}/`); });
 
-// Website Functions
 async function fetchAndSaveAllMALAnime() {
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     try {
@@ -1727,6 +1879,49 @@ async function fetchEpisodesFromAniList(malId) {
     }
 }
 
+async function fetchAnimeRelationsFromAniList(malId) {
+    const query = `
+        query ($idMal: Int) {
+            Media(idMal: $idMal, type: ANIME) {
+                relations {
+                    edges {
+                        relationType(version: 2)
+                        node {
+                            idMal
+                            type
+                            title { romaji english native }
+                            format
+                            episodes
+                            coverImage { large }
+                        }
+                    }
+                }
+            }
+        }
+    `;
+    const response = await axios.post('https://graphql.anilist.co', {
+        query,
+        variables: { idMal: Number.parseInt(malId, 10) }
+    }, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+    });
+    const edges = response.data?.data?.Media?.relations?.edges || [];
+    return edges
+        .filter(edge => ['PREQUEL', 'SEQUEL'].includes(edge.relationType)
+            && edge.node?.type === 'ANIME' && Number(edge.node.idMal) > 0)
+        .map(({ relationType, node }) => ({
+            relationType,
+            malId: Number(node.idMal),
+            title: node.title?.romaji || node.title?.english || node.title?.native || 'Untitled anime',
+            english_title: node.title?.english || null,
+            japanese_title: node.title?.native || null,
+            type: node.format || 'ANIME',
+            score: null,
+            image_url: node.coverImage?.large || null,
+            episodes: node.episodes || null
+        }));
+}
+
 async function checkWatchlistEpisodeReleases() {
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     let watchedAnime;
@@ -1808,6 +2003,79 @@ async function checkWatchlistEpisodeReleases() {
         }
         await sleep(700);
     }
+}
+
+async function fetchUpcomingMALSeason(year, season) {
+    const cacheKey = `${year}-${season}`;
+    const cached = upcomingAnimeCache.get(cacheKey);
+    if (cached && Date.now() - cached.cachedAt < UPCOMING_ANIME_CACHE_TTL_MS) return cached.animeList;
+
+    const clientId = process.env.MAL_ID || process.env.MAL_CLIENT_ID;
+    if (!clientId) {
+        const error = new Error('MyAnimeList client ID is not configured.');
+        error.statusCode = 503;
+        throw error;
+    }
+
+    const fields = [
+        'alternative_titles', 'start_date', 'synopsis', 'mean', 'media_type',
+        'num_episodes', 'status', 'rating', 'genres'
+    ].join(',');
+    const firstUrl = new URL(`https://api.myanimelist.net/v2/anime/season/${year}/${season}`);
+    firstUrl.searchParams.set('sort', 'anime_score');
+    firstUrl.searchParams.set('limit', '100');
+    firstUrl.searchParams.set('fields', fields);
+
+    const rows = [];
+    let nextUrl = firstUrl.toString();
+    let pageCount = 0;
+    while (nextUrl && pageCount < 5) {
+        const parsedUrl = new URL(nextUrl);
+        if (parsedUrl.origin !== 'https://api.myanimelist.net') {
+            throw new Error('MyAnimeList returned an unexpected paging URL.');
+        }
+        const response = await fetch(parsedUrl, {
+            headers: { 'X-MAL-CLIENT-ID': clientId, Accept: 'application/json' }
+        });
+        if (!response.ok) {
+            const error = new Error(`MyAnimeList upcoming season request failed (${response.status}).`);
+            error.statusCode = response.status === 429 ? 503 : 502;
+            throw error;
+        }
+        const payload = await response.json();
+        if (!Array.isArray(payload.data)) throw new Error('MyAnimeList returned an invalid seasonal anime response.');
+        rows.push(...payload.data.map(item => item.node || item));
+        nextUrl = payload.paging?.next || null;
+        pageCount += 1;
+    }
+
+    const animeList = rows
+        .filter(anime => anime && anime.rating?.toLowerCase() !== 'rx')
+        .map(anime => ({
+            mal_id: anime.id,
+            title: anime.title,
+            english_title: anime.alternative_titles?.en || null,
+            japanese_title: anime.alternative_titles?.ja || null,
+            type: anime.media_type || 'TV',
+            episodes: anime.num_episodes || null,
+            score: anime.mean || null,
+            rating: anime.rating || null,
+            status: anime.status || null,
+            start_date: anime.start_date || null,
+            synopsis: anime.synopsis || null,
+            image_url: anime.main_picture?.large || anime.main_picture?.medium || null
+        }))
+        .sort((left, right) => {
+            if (left.start_date && right.start_date && left.start_date !== right.start_date) {
+                return left.start_date.localeCompare(right.start_date);
+            }
+            if (left.start_date) return -1;
+            if (right.start_date) return 1;
+            return Number(right.score || 0) - Number(left.score || 0);
+        });
+
+    upcomingAnimeCache.set(cacheKey, { animeList, cachedAt: Date.now() });
+    return animeList;
 }
 
 async function getAiringSchedule(type) {
@@ -1964,7 +2232,6 @@ async function awardActivityXpSafely(userId, eventType, sourceKey, points, daily
     }
 }
 
-// Scheduled Cron Jobs
 try {
     // Run Functions Every Day at Midnight
     cron.schedule('0 0 * * *', async () => {
