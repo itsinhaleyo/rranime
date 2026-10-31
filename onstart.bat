@@ -1,4 +1,4 @@
 @echo off
-cd /d "E:\rranime"
+cd /d "E:\rranimedev"
 npm start
 pause

@@ -2,7 +2,7 @@
   "name": "RRAnime",
   "short_name": "RRAnime",
   "description": "Anime Forums & Discussions",
-  "start_url": "/home",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f1115",

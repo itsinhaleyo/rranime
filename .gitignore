@@ -1,5 +1,14 @@
 .env
 /node_modules
+/\.expo/
+/client/dist/
+/client/dist-android/
+/client/dist-ios/
+/client/node_modules/
+/client/.expo/
+/client/ios/Pods/
+/client/ios/DerivedData/
+/client/ios/build/
 android/.gradle/
 android/.idea/
 android/local.properties

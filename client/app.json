@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "RRAnime",
+    "slug": "rranime",
+    "scheme": "rranime",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "web": { "bundler": "metro", "name": "RRAnime" },
+    "ios": { "bundleIdentifier": "com.rranime.ios" },
+    "android": { "package": "com.rranime.mobile" }
+  }
+}

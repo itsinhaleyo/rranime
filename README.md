@@ -1,6 +1,6 @@
 # RRAnime
 
-RRAnime is an anime discovery, watchlist, and community website built with Node.js, Express, EJS, and MySQL. It combines MyAnimeList catalog data, AniList episode information, and AniSchedule release data. The repository also contains an Android WebView app for the live website.
+RRAnime is an anime discovery, watchlist, and community application. Its website and mobile client share a React Native interface (React Native Web in the browser), while a Node.js/Express server handles authentication, page data, MySQL persistence, streaming integrations, and scheduled catalog updates. Existing MyAnimeList, AniList, AniSchedule, and MySQL data remain on the server; the client uses those existing routes and records.
 
 ## Features
 
@@ -12,15 +12,15 @@ RRAnime is an anime discovery, watchlist, and community website built with Node.
 - Save a preferred SUB or DUB audio language from the episode player; new shows use that preference unless the URL explicitly selects an audio option.
 - Share a link to an episode.
 - Add anime to a personal watchlist or import a list from a MyAnimeList username.
-- Track episode history and resume position. Continue Watching is available from `/home` and the hamburger menu; precise timestamps are currently recorded for the Zoko player, which exposes playback events.
+- Track episode history and resume position. Continue Watching is available from `/` and the hamburger menu; precise timestamps are currently recorded for the Zoko player, which exposes playback events.
 - Customize a profile with a display name, bio, avatar URL, and accent color.
 - Earn activity XP by opening episode pages and posting comments or replies. Activity rank badges appear on profiles, episode comments, and live watch room chat. User ID 1 always has the ADMIN rank.
 - Post episode comments and replies. Users receive in-app notifications when someone replies to their comment.
-- See newest comments on the landing page and /home, and a seven-day estimated subtitled release schedule on /home.
-- Full-page templates provide page-specific metadata descriptions.
+- See newest comments on the landing page and /, and a seven-day estimated subtitled release schedule on /.
+- Legacy EJS pages provide page-specific metadata descriptions when opened with `?legacy=1`.
 - Receive in-app episode notifications for anime on the watchlist.
 - Create link-shareable episode rooms with synchronized Zoko playback, shared SUB/DUB selection, room chat, and viewer presence. The host can switch everyone to the previous or next episode, while automatic advance moves everyone forward when playback ends. Episode-specific room links keep the room and chat together; the host can also end a room manually. Guests must sign in to join.
-- Use the site in a mobile browser or through the included Android WebView app.
+- Use the shared interface on the web and prepare Android or iOS native builds through Expo. Native project folders are generated locally and are not included in the repository.
 
 ## Technology and requirements
 
@@ -28,6 +28,17 @@ RRAnime is an anime discovery, watchlist, and community website built with Node.
 - MySQL-compatible database
 - Express 5, EJS, Passport Local, and MySQL-backed sessions
 - MyAnimeList API v2, AniList GraphQL, and AniSchedule JSON feeds
+- Expo and React Native with React Native Web for the shared browser and phone client
+
+## React Native client and existing backend
+
+The app in `client/` is the shared React Native interface for the website and native mobile builds. React Native Web renders the same app in browsers. Express and MySQL remain the backend and source of truth: the client requests page data with `Accept: application/vnd.rranime.page+json` and submits changes through the existing routes, reusing the existing accounts, database tables, and stored data.
+
+When `client/dist` exists, normal browser page requests are served by the exported app. Add `?legacy=1` to a page URL to view its original EJS-rendered version. The EJS templates, CSS, and browser scripts are still part of the project for this legacy mode and for server-rendered responses; they should not be removed until those paths are retired.
+
+For local web UI development, run `npm run app:web`. The Expo development server runs separately from Express, so set `EXPO_PUBLIC_API_URL` to the backend's HTTPS origin before starting it (for example, `https://dev.rranime.online`). For a same-origin deployed website bundle, the app uses the current browser origin automatically. Session cookies are secure-only, so authenticated development against the backend requires HTTPS.
+
+Build the browser bundle with `npm run app:export`. This creates `client/dist`, which is ignored by Git and must be present on the server for normal browser visits to use the React Native Web app. Generate native project files with `npm run app:prebuild`; then use `npm run app:android` or `npm run app:ios` on a machine with the corresponding Android or Apple development tools. The generated Android and iOS project folders are local build outputs, not committed application sources.
 
 ## Getting started
 
@@ -77,14 +88,21 @@ npm run dev
 
 The server listens on the port in PORT. The project does not currently define a test script.
 
+To run the browser client separately during UI development, configure `EXPO_PUBLIC_API_URL` as described above and run:
+
+~~~bash
+npm run app:web
+~~~
+
+For the normal website flow, run `npm run app:export` after client changes so Express can serve the updated `client/dist` bundle.
+
 ## Routes
 
-Feature pages and APIs require authentication; login and logout remain accessible without an active session. Unmatched paths redirect to /home.
+Feature pages and APIs require authentication; login and logout remain accessible without an active session. Unmatched paths redirect to /.
 
 | Route | Purpose |
 | --- | --- |
-| / | Landing page with popular airing anime and newest comments |
-| /home | Spotlight, airing anime, Continue Watching, newest comments, latest episodes, and estimated schedule |
+| / | Spotlight, airing anime, Continue Watching, newest comments, latest episodes, and estimated schedule |
 | /login, POST /login, /logout | Sign in and sign out |
 | /profile, POST /profile | View and customize your profile and activity rank |
 | /continue-watching | View the most recent unfinished episode for each series and resume playback |
@@ -101,7 +119,7 @@ Feature pages and APIs require authentication; login and logout remain accessibl
 | POST /anime/:animeId/:episode/comments/:commentId/delete | Delete your own comment or reply |
 | /airing, /trending, /hentai | Browse airing, trending, or Rx-rated titles |
 | /upcoming | Browse the next season's anime from the MyAnimeList API |
-| /airingschedule/sub, /airingschedule/dub | View the weekly subtitled or dubbed release timetable |
+| /airingschedule | View the weekly subtitled release timetable |
 | /genres, /genres/:genreId | Browse genres |
 | /watchlist | View your watchlist |
 | POST /watchlist/add, POST /watchlist/remove/:animeId | Add or remove a title |
@@ -140,7 +158,7 @@ The application runs its cron jobs in the America/Chicago timezone:
 - At 30 minutes past each hour: refresh currently airing titles and check watchlisted titles for newly released episodes with AniList.
 - Every three hours at 20 minutes past the hour: save both subtitled and dubbed AniSchedule data into the database.
 
-Schedule data is cached in memory for five minutes. Saved entries are updated when new schedule data is available and entries older than 14 days are pruned. The /home estimated schedule and weekly timetable use this data; estimates and release times depend on the upstream feed and may be incomplete or change. Schedule times are formatted using the application server's local timezone.
+Schedule data is cached in memory for five minutes. Saved entries are updated when new schedule data is available and entries older than 14 days are pruned. The / estimated schedule and weekly timetable use this data; estimates and release times depend on the upstream feed and may be incomplete or change. Schedule times are formatted using the application server's local timezone.
 
 Episode notifications reflect AniList release information and do not confirm availability from a streaming provider. When an anime is first tracked with at least one released episode, current watchlist users receive an episode 1 notification and the current release count is saved as the baseline; future release checks notify for new episodes without sending a backlog of older episode notifications. Streaming embeds are hosted by third parties and can be unavailable or behave differently across browsers.
 
@@ -165,30 +183,21 @@ src/
     schema.sql            Fresh database schema
     migrations/           One-time SQL upgrades for existing databases
   public/
-    css/                  Page and shared styles
-    script/               Browser interactions
-    templates/            EJS pages and shared partials
+    css/                  Legacy page and shared styles
+    script/               Legacy browser interactions
+    templates/            Legacy EJS pages and shared partials
   index.js                Express routes, data sync, and cron jobs
-android/
-  app/                    Android WebView application
-ios/
-  RRAnime.xcodeproj/      Native iOS WebView application project
-  RRAnime/                SwiftUI app, WebKit view, and RRAnime app icon
+client/
+  App.js                  Shared React Native application and screens
+  WatchRoomPage.js        Shared watch-room interface
+  PlayerView.*.js         Platform-specific player wrappers
+  app.json                Expo app configuration
+  dist/                   Generated React Native Web export (gitignored)
 ~~~
 
-## Android app
+## Native mobile builds
 
-The android directory contains an Android Studio app that loads the live site at `https://rranime.online/`. It is a WebView wrapper; the website's Express server, database, domain, and TLS certificate remain required.
-
-To run it, open the android folder in Android Studio, allow Gradle to sync, then run the app on an emulator or connected device. The current app uses application ID com.rranime.mobile, min SDK 23, target SDK 35, and version 1.0.
-
-The WebView enables JavaScript, browser storage, cookies, and fullscreen video. Links to other hosts open in the device browser, while cleartext HTTP is disabled. Because the app loads the deployed website, website changes become available after deployment and generally do not require rebuilding the APK. Changes to native Android code do require a new build. Third-party video providers may behave differently in Android WebView; test playback on target devices before release. This README does not claim that every site feature has been validated on Android.
-
-## iOS app
-
-The `ios` directory contains a native SwiftUI shell around a `WKWebView` that loads `https://rranime.online/`. It uses WebKit website storage for login and preferences, supports inline and fullscreen playback, shows a loading indicator, provides back navigation, and opens top-level links to other hosts in the device browser. Website changes appear after deployment; native app changes require a new iOS build.
-
-Open `ios/RRAnime.xcodeproj` in Xcode on macOS, select an iPhone simulator or connected device, choose a signing team if prompted, and run the `RRAnime` scheme. The project targets iOS 16 and uses bundle identifier `com.rranime.ios`. Building, signing, and distributing the app require Xcode on macOS. Embedded third-party players can behave differently in WKWebView, so playback and watch rooms should be checked on real iPhones before release. The iOS project has not been built or device-tested in this Windows workspace.
+The repository contains the Expo/React Native source and configuration, not committed Android Studio or Xcode project folders. Run `npm run app:prebuild` to generate native projects. Android builds require Android Studio/SDK tooling; iOS builds and signing require Xcode on macOS. The mobile client still needs the Express backend and its MySQL database. Set `EXPO_PUBLIC_API_URL` to the server's HTTPS origin when testing from a device. The platform-specific player wrappers are in `client/PlayerView.native.js` and `client/PlayerView.web.js`; third-party streaming embeds and watch-room playback should be checked on target devices before release.
 
 ## Security
 

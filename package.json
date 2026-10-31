@@ -6,8 +6,15 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "app": "npm --workspace client run start",
+    "app:web": "npm --workspace client run web",
+    "app:export": "npm --workspace client run export:web",
+    "app:prebuild": "npm --workspace client run prebuild",
+    "app:android": "npm --workspace client run run:android",
+    "app:ios": "npm --workspace client run run:ios"
   },
+  "workspaces": ["client"],
   "dependencies": {
     "axios": "^1.20.0",
     "cron": "^4.4.0",

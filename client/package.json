@@ -1,0 +1,26 @@
+{
+  "name": "rranime-universal-client",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo/AppEntry",
+  "scripts": {
+    "start": "expo start",
+    "web": "expo start --web",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "expo prebuild",
+    "run:android": "expo run:android",
+    "run:ios": "expo run:ios",
+    "export:web": "expo export --platform web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "expo": "^58.0.22",
+    "expo-system-ui": "~58.0.7",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-native": "^0.88.1",
+    "react-native-web": "^0.21.4",
+    "react-native-webview": "14.0.1"
+  }
+}

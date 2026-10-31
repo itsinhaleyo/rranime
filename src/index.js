@@ -26,6 +26,15 @@ mainweb.set('trust proxy', 1);
 rranime.set('trust proxy', 1);
 rranime.use(express.urlencoded({ extended: false }));
 rranime.use(express.json());
+rranime.use((req, res, next) => {
+    if (!req.accepts('application/vnd.rranime.page+json')) return next();
+    const renderHtml = res.render.bind(res);
+    res.render = (view, options, callback) => {
+        if (typeof options === 'function') return renderHtml(view, options);
+        return res.json({ view, data: options || {} });
+    };
+    next();
+});
 const sessionStore = new MySQLStore({}, db);
 const sessionOptions = {
     key: 'rranime_session_cookie',
@@ -41,6 +50,15 @@ const sessionOptions = {
 rranime.use(session(sessionOptions));
 rranime.use(passport.initialize());
 rranime.use(passport.session());
+const universalClientPath = path.join(__dirname, '..', 'client', 'dist');
+rranime.use(express.static(universalClientPath, { index: false }));
+rranime.use((req, res, next) => {
+    if (req.method === 'GET' && req.path === '/home' && req.accepts('text/html')) return res.redirect(301, '/');
+    if (req.method !== 'GET' || !req.accepts('text/html') || req.path.startsWith('/api/') || req.query.legacy === '1') return next();
+    const clientIndex = path.join(universalClientPath, 'index.html');
+    if (require('fs').existsSync(clientIndex)) return res.sendFile(clientIndex);
+    next();
+});
 
 const LocalStrategy = require('passport-local').Strategy;
 
@@ -83,6 +101,9 @@ passport.deserializeUser((id, done) => {
 function checkAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
         return next();
+    }
+    if (req.accepts('application/vnd.rranime.page+json')) {
+        return res.status(401).json({ error: 'authentication_required', loginPath: '/login' });
     }
     res.redirect('/login');
 }
@@ -163,7 +184,7 @@ rranime.get('/login', (req, res) => {
 });
 
 rranime.post('/login', passport.authenticate('local', {
-    successRedirect: '/home',
+    successRedirect: '/',
     failureRedirect: '/login'
 }));
 
@@ -250,51 +271,6 @@ rranime.get('/logout', (req, res, next) => {
 });
 
 rranime.get('/', checkAuthenticated, async (req, res) => {
-    try {
-        const [trendingTags] = await db.query(
-            `SELECT mal_id, title, english_title, japanese_title
-             FROM mal_anime
-             WHERE status = 'currently_airing'
-               AND (rating IS NULL OR rating != 'rx')
-             ORDER BY COALESCE(score, 0) DESC
-             LIMIT 4`
-        );
-        const [airingAnime] = await db.query(
-            `SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url
-             FROM mal_anime
-             WHERE status = 'currently_airing'
-               AND (rating IS NULL OR rating != 'rx')
-             ORDER BY COALESCE(score, 0) DESC
-             LIMIT 6`
-        );
-        await ensureUserXpReady();
-        const [recentComments] = await db.execute(`
-            SELECT c.comment_id, c.parent_comment_id, c.body, c.created_at,
-                   c.anime_id, c.episode_number, a.title AS anime_title, a.english_title, a.japanese_title,
-                   c.user_id, p.display_name, p.avatar_url, p.accent_color,
-                   COALESCE(xp.xp, 0) AS xp
-            FROM episode_comments c
-            INNER JOIN mal_anime a ON a.mal_id = c.anime_id
-            LEFT JOIN user_profiles p ON p.user_id = c.user_id
-            LEFT JOIN user_xp_totals xp ON xp.user_id = c.user_id
-            ORDER BY c.created_at DESC, c.comment_id DESC
-            LIMIT 5
-        `);
-        recentComments.forEach(comment => {
-            comment.activityRank = getActivityRank(comment.user_id, comment.xp);
-        });
-        res.render('landing', { 
-            trending: trendingTags,
-            airingAnime,
-            recentComments
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Error loading RRA: " + err.message);
-    }
-});
-
-rranime.get('/home', checkAuthenticated, async (req, res) => {
     try {
         const [spotlight] = await db.query(
             `SELECT mal_id, title, english_title, japanese_title, type, episodes, score, synopsis, image_url 
@@ -1252,13 +1228,15 @@ rranime.get('/upcoming', checkAuthenticated, async (req, res) => {
     }
 });
 
-rranime.get('/airingschedule/:type', checkAuthenticated, async (req, res) => {
+rranime.get('/airingschedule/:type', checkAuthenticated, (req, res) => {
+    if (['sub', 'dub'].includes(String(req.params.type).toLowerCase())) return res.redirect(301, '/airingschedule');
+    return res.status(404).send('Schedule type not found.');
+});
+
+rranime.get('/airingschedule', checkAuthenticated, async (req, res) => {
     try {
         const now = new Date();
-        const scheduleType = String(req.params.type).toLowerCase();
-        if (!['sub', 'dub'].includes(scheduleType)) {
-            return res.status(404).send('Schedule type not found.');
-        }
+        const scheduleType = 'sub';
         const windowStartDate = new Date(now);
         windowStartDate.setHours(0, 0, 0, 0);
         const windowStart = Math.floor(windowStartDate.getTime() / 1000);
@@ -1412,7 +1390,7 @@ rranime.get('/search', checkAuthenticated, async (req, res) => {
     try {
         const searchQuery = req.query.keyword || '';
         if (!searchQuery.trim()) {
-            return res.redirect('/home');
+            return res.redirect('/');
         }
         const [results] = await db.query(
             `SELECT mal_id, title, english_title, japanese_title, type, episodes, score, image_url 
@@ -1729,7 +1707,7 @@ rranime.get('/api/anime-suggestions', checkAuthenticated, async (req, res) => {
     }
 });
 
-rranime.get('/*any', (req, res) => { res.redirect('/home'); });
+rranime.get('/*any', (req, res) => { res.redirect('/'); });
 
 mainweb.use(vhost(`rranime.online`, rranime));
 mainweb.listen(port, () => { console.log(`RRAnime running on PORT:${port}/`); });
