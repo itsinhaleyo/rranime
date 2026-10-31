@@ -41,6 +41,7 @@ CREATE TABLE user_profiles (
     bio VARCHAR(280) NOT NULL DEFAULT '',
     avatar_url VARCHAR(500) NOT NULL DEFAULT '',
     accent_color CHAR(7) NOT NULL DEFAULT '#ff3c20',
+    preferred_audio ENUM('sub', 'dub') NOT NULL DEFAULT 'sub',
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 

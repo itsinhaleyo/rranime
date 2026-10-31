@@ -5,9 +5,11 @@ RRAnime is an anime discovery, watchlist, and community website built with Node.
 ## Features
 
 - Browse popular and currently airing anime, trending titles, genres, and weekly release schedules.
+- Open genre links from anime details or episode series information to browse titles in that genre.
 - Browse the next anime season through the MyAnimeList seasonal anime API.
 - Search using English, romaji, or Japanese titles, and switch displayed anime titles between English and Japanese.
 - View anime details, prequel and sequel relationships, streaming providers, subtitles or dubs, episode navigation, series and episode information, episode discussions, and a countdown to the next scheduled episode when data is available. Watch controls and the episode selector are hidden for titles marked `not_yet_aired`. Episodes advance automatically when the selected player reports completion.
+- Save a preferred SUB or DUB audio language from the episode player; new shows use that preference unless the URL explicitly selects an audio option.
 - Share a link to an episode.
 - Add anime to a personal watchlist or import a list from a MyAnimeList username.
 - Track episode history and resume position. Continue Watching is available from `/home` and the hamburger menu; precise timestamps are currently recorded for the Zoko player, which exposes playback events.
@@ -15,6 +17,7 @@ RRAnime is an anime discovery, watchlist, and community website built with Node.
 - Earn activity XP by opening episode pages and posting comments or replies. Activity rank badges appear on profiles, episode comments, and live watch room chat. User ID 1 always has the ADMIN rank.
 - Post episode comments and replies. Users receive in-app notifications when someone replies to their comment.
 - See newest comments on the landing page and /home, and a seven-day estimated subtitled release schedule on /home.
+- Full-page templates provide page-specific metadata descriptions.
 - Receive in-app episode notifications for anime on the watchlist.
 - Create link-shareable episode rooms with synchronized Zoko playback, shared SUB/DUB selection, room chat, and viewer presence. The host can switch everyone to the previous or next episode, while automatic advance moves everyone forward when playback ends. Episode-specific room links keep the room and chat together; the host can also end a room manually. Guests must sign in to join.
 - Use the site in a mobile browser or through the included Android WebView app.
@@ -48,7 +51,7 @@ Copy .envexample to .env and fill in the database and account values. Keep .env 
 | DB_NAME | Database name |
 | PORT | HTTP listener port |
 | SESSION_SECRET | Secret used to sign sessions; use a long, random value |
-| USER_1, USER_2, USER_3 | Passwords for the three configured local accounts |
+| USER_1 through USER_6 | Passwords for up to six configured local accounts; `USER_1` is the ADMIN account |
 | MAL_ID | MyAnimeList API client ID for catalog sync and list import |
 | MAL_SECRET, DOMAIN | Present in the example file but not currently read by the application |
 
@@ -58,9 +61,7 @@ The application routes requests through a virtual host configured as rranime.onl
 
 ### 3. Prepare the database
 
-Create a MySQL-compatible database and apply src/database/schema.sql to a new, empty database. The schema defines the anime catalog and genres, watchlists, profiles, episode comments and replies, notifications, watched episode progress, activity XP, saved schedule entries, and watch rooms with chat. The MySQL session store creates and manages its own session table.
-
-There is no general migration runner for existing databases. Back up an existing database and compare its schema before deploying. Do not run the full schema over a populated database. Apply reviewed migrations so the Japanese-title column, airing-schedule table, watch-room tables, and other required schema are present before starting the app. For existing databases with `user_watched_episodes`, apply `src/database/migrations/20261028_add_episode_progress.sql` once to add playback position fields. The app initializes XP events and totals from existing watch and comment records when needed.
+Apply `src/database/schema.sql`. Existing databases must be backed up and updated to include every table and column in the current schema before deploying;
 
 ### 4. Start the application
 
@@ -78,7 +79,7 @@ The server listens on the port in PORT. The project does not currently define a 
 
 ## Routes
 
-All application pages and APIs require authentication except /login. Unmatched paths redirect to /home.
+Feature pages and APIs require authentication; login and logout remain accessible without an active session. Unmatched paths redirect to /home.
 
 | Route | Purpose |
 | --- | --- |
@@ -86,10 +87,11 @@ All application pages and APIs require authentication except /login. Unmatched p
 | /home | Spotlight, airing anime, Continue Watching, newest comments, latest episodes, and estimated schedule |
 | /login, POST /login, /logout | Sign in and sign out |
 | /profile, POST /profile | View and customize your profile and activity rank |
-| /continue-watching | View recent unfinished episodes and resume playback |
+| /continue-watching | View the most recent unfinished episode for each series and resume playback |
 | /search?keyword=... | Search anime by title |
-| /anime/:animeId | Anime details, AniList prequel/sequel relationships, watchlist controls, and episode directory (episode controls are hidden for `not_yet_aired` titles) |
+| /anime/:animeId | Anime details, linked genres, AniList prequel/sequel relationships, watchlist controls, and episode directory (episode controls are hidden for `not_yet_aired` titles) |
 | /anime/:animeId/:episode | Episode player, schedule countdown, discussion, and replies |
+| POST /api/preferred-audio | Save the signed-in user's preferred SUB/DUB audio language |
 | /watch2gether | Browse open episode rooms |
 | POST /watch2gether/create | Create a room from an episode page |
 | /watch2gether/:roomId | Join a room; redirects to its current episode URL |
@@ -144,7 +146,9 @@ Episode notifications reflect AniList release information and do not confirm ava
 
 ## Title language preference
 
-The English/Japanese title control is included in the shared header. The selected preference is saved in browser local storage. Japanese title data comes from MyAnimeList catalog synchronization and native titles in the AniSchedule feed; coverage depends on the available source data. The Upcoming Anime page queries the next season from MyAnimeList. The `/view` detail page gets prequel and sequel relationships from AniList; entries already in the local catalog link to RRAnime detail pages, while other entries link to MyAnimeList.
+The English/Japanese title control is included in the shared header. The selected preference is saved in browser local storage. Japanese title data comes from MyAnimeList catalog synchronization and native titles in the AniSchedule feed; coverage depends on the available source data. The Upcoming Anime page queries the next season from MyAnimeList. The `/anime/:animeId` detail page gets prequel and sequel relationships from AniList; entries already in the local catalog link to RRAnime detail pages, while other entries link to MyAnimeList. Genre links on the detail and episode pages open the corresponding genre listing.
+
+The SUB/DUB preference selected in the `/anime/:animeId/:episode` player is saved in `user_profiles.preferred_audio` and applies to other shows when their URL does not explicitly set `audio=sub` or `audio=dub`.
 
 ## Episode watch rooms
 
@@ -159,6 +163,7 @@ src/
   database/
     db.js                 MySQL connection pool
     schema.sql            Fresh database schema
+    migrations/           One-time SQL upgrades for existing databases
   public/
     css/                  Page and shared styles
     script/               Browser interactions
@@ -166,15 +171,24 @@ src/
   index.js                Express routes, data sync, and cron jobs
 android/
   app/                    Android WebView application
+ios/
+  RRAnime.xcodeproj/      Native iOS WebView application project
+  RRAnime/                SwiftUI app, WebKit view, and RRAnime app icon
 ~~~
 
 ## Android app
 
-The android directory contains an Android Studio app that loads the live site at https://rranime.online/. It is a WebView wrapper; the website's Express server, database, domain, and TLS certificate remain required.
+The android directory contains an Android Studio app that loads the live site at `https://rranime.online/`. It is a WebView wrapper; the website's Express server, database, domain, and TLS certificate remain required.
 
 To run it, open the android folder in Android Studio, allow Gradle to sync, then run the app on an emulator or connected device. The current app uses application ID com.rranime.mobile, min SDK 23, target SDK 35, and version 1.0.
 
 The WebView enables JavaScript, browser storage, cookies, and fullscreen video. Links to other hosts open in the device browser, while cleartext HTTP is disabled. Because the app loads the deployed website, website changes become available after deployment and generally do not require rebuilding the APK. Changes to native Android code do require a new build. Third-party video providers may behave differently in Android WebView; test playback on target devices before release. This README does not claim that every site feature has been validated on Android.
+
+## iOS app
+
+The `ios` directory contains a native SwiftUI shell around a `WKWebView` that loads `https://rranime.online/`. It uses WebKit website storage for login and preferences, supports inline and fullscreen playback, shows a loading indicator, provides back navigation, and opens top-level links to other hosts in the device browser. Website changes appear after deployment; native app changes require a new iOS build.
+
+Open `ios/RRAnime.xcodeproj` in Xcode on macOS, select an iPhone simulator or connected device, choose a signing team if prompted, and run the `RRAnime` scheme. The project targets iOS 16 and uses bundle identifier `com.rranime.ios`. Building, signing, and distributing the app require Xcode on macOS. Embedded third-party players can behave differently in WKWebView, so playback and watch rooms should be checked on real iPhones before release. The iOS project has not been built or device-tested in this Windows workspace.
 
 ## Security
 

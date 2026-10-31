@@ -1,7 +1,7 @@
 {
   "name": "RRAnime",
   "short_name": "RRAnime",
-  "description": "Anime discovery and community",
+  "description": "Anime Forums & Discussions",
   "start_url": "/home",
   "scope": "/",
   "display": "standalone",

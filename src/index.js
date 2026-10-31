@@ -57,6 +57,15 @@ passport.use(new LocalStrategy({
     } else if (password === process.env.USER_3) {
         const user = { id: 3, role: 'user' };
         return done(null, user);
+    } else if (password === process.env.USER_4) {
+        const user = { id: 4, role: 'user' };
+        return done(null, user);
+    } else if (password === process.env.USER_5) {
+        const user = { id: 5, role: 'user' };
+        return done(null, user);
+    } else if (password === process.env.USER_6) {
+        const user = { id: 6, role: 'user' };
+        return done(null, user);
     } else {
         return done(null, false, { message: 'Invalid password' });
     }
@@ -445,6 +454,14 @@ rranime.get('/anime/:animeid', checkAuthenticated, async (req, res) => {
         );
         if (rows.length === 0) return res.status(404).send("Anime Title Not Found");
         let animeDetails = rows[0];
+        const [viewGenreRows] = await db.execute(`
+            SELECT g.genre_id, g.genre_name
+            FROM anime_genres_mapping ag
+            INNER JOIN mal_genres g ON g.genre_id = ag.genre_id
+            WHERE ag.anime_id = ?
+            ORDER BY g.genre_name
+        `, [animeDetails.mal_id]);
+        animeDetails.genreLinks = viewGenreRows;
         if (!animeDetails.episodes || animeDetails.episodes === 0 || animeDetails.status === 'currently_airing') {
             const anilistData = await fetchEpisodesFromAniList(animeDetails.mal_id);
             if (anilistData && anilistData.episodes > 0) {
@@ -528,6 +545,14 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
             return res.status(404).send("Anime Profile Index Record Not Found.");
         }
         const animeDetails = animeRows[0];
+        const [watchGenreRows] = await db.execute(`
+            SELECT g.genre_id, g.genre_name
+            FROM anime_genres_mapping ag
+            INNER JOIN mal_genres g ON g.genre_id = ag.genre_id
+            WHERE ag.anime_id = ?
+            ORDER BY g.genre_name
+        `, [animeDetails.mal_id]);
+        animeDetails.genreLinks = watchGenreRows;
         const anilistData = await fetchEpisodesFromAniList(animeDetails.mal_id);
         if (!animeDetails.episodes || animeDetails.episodes === 0 || animeDetails.status === 'currently_airing') {
             if (anilistData && anilistData.episodes > 0) {
@@ -541,7 +566,12 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
             }
         }
         const totalEpisodesCount = animeDetails.episodes || 12;
-        const selectedAudio = req.query.audio === 'dub' ? 'dub' : 'sub';
+        const [audioPreferenceRows] = await db.execute(
+            'SELECT preferred_audio FROM user_profiles WHERE user_id = ?',
+            [String(req.user.id)]
+        );
+        const requestedAudio = ['sub', 'dub'].includes(req.query.audio) ? req.query.audio : null;
+        const selectedAudio = requestedAudio || audioPreferenceRows[0]?.preferred_audio || 'sub';
         const autoPlayNext = req.query.autoplay === '1';
         const allowedProviders = ['zoko', 'anixo', 'megavid'];
         let selectedProvider = allowedProviders.includes(req.query.provider) ? req.query.provider : 'zoko';
@@ -660,6 +690,24 @@ rranime.get('/anime/:animeid/:episode', checkAuthenticated, async (req, res) => 
     } catch (err) {
         console.error(err);
         res.status(500).send("Error compiling video theater streaming canvas: " + err.message);
+    }
+});
+
+rranime.post('/api/preferred-audio', checkAuthenticated, async (req, res) => {
+    const audio = req.body.audio;
+    if (!['sub', 'dub'].includes(audio)) {
+        return res.status(400).json({ error: 'Choose sub or dub audio.' });
+    }
+    try {
+        await db.execute(`
+            INSERT INTO user_profiles (user_id, preferred_audio)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE preferred_audio = VALUES(preferred_audio)
+        `, [String(req.user.id), audio]);
+        res.json({ preferredAudio: audio });
+    } catch (err) {
+        console.error('Error saving preferred audio:', err);
+        res.status(500).json({ error: 'Could not save preferred audio.' });
     }
 });
 
@@ -2323,10 +2371,34 @@ async function awardActivityXpSafely(userId, eventType, sourceKey, points, daily
     }
 }
 
+async function getDatabaseSize(dbName) {
+    const query = `
+        SELECT 
+            table_schema AS "Database", 
+            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS "Size_MB" 
+        FROM information_schema.tables 
+        WHERE table_schema = ?
+        GROUP BY table_schema
+    `;
+    try {
+        const [rows] = await db.execute(query, [dbName]);
+        const row = rows[0];
+        if (row) {
+            console.log(`Database Size: ${row.Size_MB} MB`);
+        } else {
+            console.log(`\nDatabase "${dbName}" not found or has no tables.\n`);
+        }
+    } catch (err) {
+        console.log("Error executing query: " + err.message);
+    }
+}
+
+
 try {
     // Run Functions Every Day at Midnight
     cron.schedule('0 0 * * *', async () => {
         await fetchAndSaveAllMALAnime();
+        await getDatabaseSize(process.env.DB_NAME);
     }, {
         scheduled: true,
         timezone: "America/Chicago"

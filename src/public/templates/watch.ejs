@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#0f1115">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Watch <%= (anime.english_title || anime.title) %> Episode <%= currentEpisode %> on RRAnime, and join Anime Forums &amp; Discussion.">
     <title data-anime-title data-title-en="Watching <%= anime.english_title || anime.title %> Episode <%= currentEpisode %> - RRAnime" data-title-ja="Watching <%= anime.japanese_title || anime.title %> Episode <%= currentEpisode %> - RRAnime">Watching <%= anime.english_title || anime.title %> Episode <%= currentEpisode %> - RRAnime</title>
     <link rel="stylesheet" href="/css/watch.css">
     <link rel="stylesheet" href="/css/header.css">
@@ -128,7 +129,13 @@
                         <% if (anime.status) { %><span><i class="fas fa-circle-play" aria-hidden="true"></i> <%= anime.status.replace(/_/g, ' ') %></span><% } %>
                         <% if (Number(anime.score) > 0) { %><span class="episode-information-score"><i class="fas fa-star" aria-hidden="true"></i> <%= Number(anime.score).toFixed(2) %></span><% } %>
                     </div>
-                    <% if (anime.genres) { %><p class="episode-information-genres"><strong>Genres</strong> <%= anime.genres %></p><% } %>
+                    <% if (anime.genreLinks && anime.genreLinks.length) { %>
+                        <p class="episode-information-genres"><strong>Genres</strong>
+                            <% anime.genreLinks.forEach((genre, index) => { %>
+                                <a href="/genres/<%= encodeURIComponent(genre.genre_id) %>"><%= genre.genre_name %></a><% if (index < anime.genreLinks.length - 1) { %><span aria-hidden="true"> · </span><% } %>
+                            <% }); %>
+                        </p>
+                    <% } %>
                     <details class="episode-information-synopsis">
                         <summary>Series synopsis</summary>
                         <p><%= anime.synopsis || 'A series synopsis is not available yet.' %></p>

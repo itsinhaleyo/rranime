@@ -622,6 +622,9 @@ cursor: pointer;
 .spec-item:last-child { border-bottom: none; }
 .spec-label { color: var(--text-muted); font-weight: 500; }
 .spec-val { color: #fff; font-weight: 600; }
+.metadata-genre-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0 .25rem; text-align: right; }
+.metadata-genre-links a { color: #ff806b; text-decoration: none; }
+.metadata-genre-links a:hover { color: #fff; text-decoration: underline; }
 .current-status { color: #5efc82; }
 /* ==========================================================================
 /anime/:animeid/:episode Separate Watch Theater Canvas Classes

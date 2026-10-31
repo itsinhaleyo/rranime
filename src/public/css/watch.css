@@ -390,6 +390,8 @@ img {
 .episode-information-tags .episode-information-score i { color: #ffc247; }
 .episode-information-genres { margin-top: .75rem; color: var(--text-muted); font-size: .76rem; line-height: 1.5; }
 .episode-information-genres strong { margin-right: .35rem; color: #d6d9e0; }
+.episode-information-genres a { color: #ff806b; text-decoration: none; }
+.episode-information-genres a:hover { color: #fff; text-decoration: underline; }
 .episode-information-synopsis { margin-top: .7rem; color: #bbc1cc; font-size: .78rem; line-height: 1.65; }
 .episode-information-synopsis summary { width: fit-content; color: #e5e7eb; font-weight: 700; cursor: pointer; }
 .episode-information-synopsis summary::marker { color: var(--accent); }

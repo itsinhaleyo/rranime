@@ -112,6 +112,12 @@ document.addEventListener("DOMContentLoaded", () => {
             activeProvider = provider;
             activeAudio = language;
             advanceTriggered = false;
+            fetch('/api/preferred-audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ audio: language })
+            }).catch(error => console.warn('Could not save preferred audio:', error));
             let finalizedStreamUrl;
 
             if (provider === "anixo") {

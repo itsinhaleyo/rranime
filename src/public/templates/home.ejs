@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#0f1115">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Watch anime, discover popular and currently airing series, and join Anime Forums &amp; Discussion on RRAnime.">
     <title>RRAnime - Watch Anime Online</title>
     <link rel="stylesheet" href="/css/home.css">
     <link rel="stylesheet" href="/css/header.css">
@@ -70,6 +71,13 @@
                     <div class="no-data-placeholder">No featured spotlights available</div>
                 <% } %>
             </section>
+            <section class="continue-watching-section" aria-labelledby="continue-watching-heading">
+                <div class="continue-watching-heading">
+                    <h2 class="section-title" id="continue-watching-heading"><i class="fas fa-clock-rotate-left text-primary" aria-hidden="true"></i> Continue Watching</h2>
+                    <a href="/continue-watching">View all <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                </div>
+                <%- include('continue-watching-items', { continueWatching: typeof continueWatching === 'undefined' ? [] : continueWatching }) %>
+            </section>
             <section class="trending-section">
                 <h2 class="section-title"><i class="fas fa-fire text-primary"></i> Airing Now</h2>
                 <div class="trending-grid">
@@ -91,13 +99,6 @@
                         <p class="empty-notice">No trending titles found.</p>
                     <% } %>
                 </div>
-            </section>
-            <section class="continue-watching-section" aria-labelledby="continue-watching-heading">
-                <div class="continue-watching-heading">
-                    <h2 class="section-title" id="continue-watching-heading"><i class="fas fa-clock-rotate-left text-primary" aria-hidden="true"></i> Continue Watching</h2>
-                    <a href="/continue-watching">View all <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
-                </div>
-                <%- include('continue-watching-items', { continueWatching: typeof continueWatching === 'undefined' ? [] : continueWatching }) %>
             </section>
             <%- include('recent-comments', { recentComments }) %>
             <section class="latest-section">
