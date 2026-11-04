@@ -13,8 +13,10 @@ export default function PlayerView({ uri, title = 'RRAnime player', onPlayerEven
   return <WebView
     ref={player}
     source={{ uri }}
-    style={{ flex: 1, width: '100%', minHeight: 300, backgroundColor: '#050505' }}
+    style={{ flex: 1, width: '100%', height: '100%', backgroundColor: '#050505' }}
+    androidLayerType="hardware"
     allowsFullscreenVideo
+    allowsProtectedMedia
     javaScriptEnabled
     domStorageEnabled
     mediaPlaybackRequiresUserAction={false}

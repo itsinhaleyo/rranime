@@ -54,7 +54,8 @@ const universalClientPath = path.join(__dirname, '..', 'client', 'dist');
 rranime.use(express.static(universalClientPath, { index: false }));
 rranime.use((req, res, next) => {
     if (req.method === 'GET' && req.path === '/home' && req.accepts('text/html')) return res.redirect(301, '/');
-    if (req.method !== 'GET' || !req.accepts('text/html') || req.path.startsWith('/api/') || req.query.legacy === '1') return next();
+    if (req.method !== 'GET' || !req.accepts('text/html') || req.path.startsWith('/api/') || (req.get('accept') || '').includes('application/vnd.rranime.page+json')) return next();
+    if (req.query.legacy === '1') return next();
     const clientIndex = path.join(universalClientPath, 'index.html');
     if (require('fs').existsSync(clientIndex)) return res.sendFile(clientIndex);
     next();
@@ -101,6 +102,9 @@ passport.deserializeUser((id, done) => {
 function checkAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
         return next();
+    }
+    if (req.query.legacy === '1') {
+        return res.redirect('/login');
     }
     if (req.accepts('application/vnd.rranime.page+json')) {
         return res.status(401).json({ error: 'authentication_required', loginPath: '/login' });
@@ -183,10 +187,21 @@ rranime.get('/login', (req, res) => {
     res.render('login', {});
 });
 
-rranime.post('/login', passport.authenticate('local', {
-    successRedirect: '/',
-    failureRedirect: '/login'
-}));
+rranime.post('/login', (req, res, next) => {
+    const isReactRequest = (req.get('accept') || '').includes('application/vnd.rranime.page+json');
+    passport.authenticate('local', (error, user) => {
+        if (error) return next(error);
+        if (!user) {
+            if (isReactRequest) return res.status(401).json({ error: 'invalid_credentials' });
+            return res.redirect('/login');
+        }
+        req.logIn(user, (loginError) => {
+            if (loginError) return next(loginError);
+            if (isReactRequest) return res.json({ success: true, redirectTo: '/' });
+            return res.redirect('/');
+        });
+    })(req, res, next);
+});
 
 rranime.get('/profile', checkAuthenticated, async (req, res) => {
     try {
@@ -2049,7 +2064,7 @@ async function checkWatchlistEpisodeReleases() {
                 const connection = await db.getConnection();
                 try {
                     await connection.beginTransaction();
-                    if (releasedCount >= 1) {
+                    if (releasedCount === 1) {
                         await connection.execute(`
                             INSERT IGNORE INTO aninotify
                                 (user_id, anime_id, episode_number, title, message)
@@ -2068,8 +2083,10 @@ async function checkWatchlistEpisodeReleases() {
                         VALUES (?, ?, NOW())
                     `, [anime.mal_id, releasedCount]);
                     await connection.commit();
-                    if (releasedCount >= 1) {
-                        console.log(`Created episode 1 notifications for ${anime.title} on its first release check.`);
+                    if (releasedCount === 1) {
+                        console.log(`Created episode 1 notifications for ${anime.title} as it began airing.`);
+                    } else if (releasedCount > 1) {
+                        console.log(`Started release tracking for ${anime.title} at episode ${releasedCount}; skipped past episode notifications.`);
                     }
                 } catch (error) {
                     await connection.rollback();

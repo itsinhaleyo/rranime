@@ -27,9 +27,9 @@ export default function PlayerView({ uri, title = 'RRAnime player', onPlayerEven
     ref: frame,
     title,
     src: uri,
-    allow: 'autoplay; fullscreen; picture-in-picture',
+    allow: 'autoplay; encrypted-media; fullscreen; picture-in-picture',
     allowFullScreen: true,
-    referrerPolicy: 'no-referrer',
-    style: { width: '100%', height: '100%', minHeight: 300, border: 0, backgroundColor: '#050505' },
+    scrolling: 'no',
+    style: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, display: 'block', width: '100%', height: '100%', border: 0, backgroundColor: '#050505' },
   });
 }

@@ -34,7 +34,7 @@ RRAnime is an anime discovery, watchlist, and community application. Its website
 
 The app in `client/` is the shared React Native interface for the website and native mobile builds. React Native Web renders the same app in browsers. Express and MySQL remain the backend and source of truth: the client requests page data with `Accept: application/vnd.rranime.page+json` and submits changes through the existing routes, reusing the existing accounts, database tables, and stored data.
 
-When `client/dist` exists, normal browser page requests are served by the exported app. Add `?legacy=1` to a page URL to view its original EJS-rendered version. The EJS templates, CSS, and browser scripts are still part of the project for this legacy mode and for server-rendered responses; they should not be removed until those paths are retired.
+When `client/dist` exists, desktop browser page requests are served by the exported app. Mobile browser page requests are redirected to the original EJS-rendered version; add `?legacy=1` to any page URL to open that version directly. The EJS templates, CSS, and browser scripts are still part of the project for this legacy mode and for server-rendered responses; they should not be removed until those paths are retired.
 
 For local web UI development, run `npm run app:web`. The Expo development server runs separately from Express, so set `EXPO_PUBLIC_API_URL` to the backend's HTTPS origin before starting it (for example, `https://dev.rranime.online`). For a same-origin deployed website bundle, the app uses the current browser origin automatically. Session cookies are secure-only, so authenticated development against the backend requires HTTPS.
 

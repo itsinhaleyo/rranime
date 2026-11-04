@@ -1,4 +1,4 @@
 @echo off
-cd /d "E:\rranimedev"
+cd /d "E:\rranime"
 npx nodemon index.js
 pause
